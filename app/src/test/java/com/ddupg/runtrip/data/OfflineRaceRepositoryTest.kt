@@ -77,6 +77,29 @@ class OfflineRaceRepositoryTest {
         assertEquals(2_000L, saved.updatedAtEpochMillis)
         assertEquals(2, saved.recordVersion)
     }
+
+    @Test
+    fun deletePermanentlyRemovesRace() = runTest {
+        val dao = FakeRaceDao()
+        val repository = OfflineRaceRepository(
+            raceDao = dao,
+            currentTimeMillis = { 1_000L },
+            newId = { "fixed-id" },
+        )
+        repository.create(
+            RaceInput(
+                name = "横店马拉松",
+                city = "金华",
+                raceDate = LocalDate.of(2026, 11, 15),
+                category = RaceCategory.MARATHON,
+                status = RaceStatus.DRAW_WON,
+            ),
+        )
+
+        repository.delete("fixed-id")
+
+        assertTrue(dao.current.isEmpty())
+    }
 }
 
 private class FakeRaceDao : RaceDao {
