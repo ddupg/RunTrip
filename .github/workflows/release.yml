@@ -1,0 +1,89 @@
+name: Release APK
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUNTRIP_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
+      RUNTRIP_KEYSTORE_BASE64: ${{ secrets.RUNTRIP_KEYSTORE_BASE64 }}
+      RUNTRIP_KEYSTORE_PASSWORD: ${{ secrets.RUNTRIP_KEYSTORE_PASSWORD }}
+      RUNTRIP_KEY_ALIAS: ${{ secrets.RUNTRIP_KEY_ALIAS }}
+      RUNTRIP_KEY_PASSWORD: ${{ secrets.RUNTRIP_KEY_PASSWORD }}
+      RUNTRIP_VERSION_NAME: ${{ github.ref_name }}
+      RUNTRIP_VERSION_CODE: ${{ github.run_number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android 16 SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Validate signing secrets
+        shell: bash
+        run: |
+          if [[ -z "$RUNTRIP_KEYSTORE_BASE64" || \
+                -z "$RUNTRIP_KEYSTORE_PASSWORD" || \
+                -z "$RUNTRIP_KEY_ALIAS" || \
+                -z "$RUNTRIP_KEY_PASSWORD" ]]; then
+            echo "::error::RunTrip release signing secrets are incomplete."
+            exit 1
+          fi
+
+      - name: Restore release keystore
+        shell: bash
+        run: |
+          printf '%s' "$RUNTRIP_KEYSTORE_BASE64" | base64 --decode > "$RUNTRIP_KEYSTORE_PATH"
+          chmod 600 "$RUNTRIP_KEYSTORE_PATH"
+
+      - name: Test, lint, and build signed release APK
+        run: ./gradlew test lint assembleRelease --no-configuration-cache --stacktrace
+
+      - name: Verify and package APK
+        shell: bash
+        run: |
+          source_apk="app/build/outputs/apk/release/app-release.apk"
+          release_apk="RunTrip-${GITHUB_REF_NAME}.apk"
+
+          test -f "$source_apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$source_apk"
+          cp "$source_apk" "$release_apk"
+          sha256sum "$release_apk" > "$release_apk.sha256"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: RunTrip ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            RunTrip-${{ github.ref_name }}.apk
+            RunTrip-${{ github.ref_name }}.apk.sha256
+
+      - name: Remove release keystore
+        if: always()
+        run: rm -f "$RUNTRIP_KEYSTORE_PATH"

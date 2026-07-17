@@ -30,6 +30,50 @@ RunTrip 是一个个人使用的 Android 马拉松行程记录应用，用来替
 
 Debug APK 生成在 `app/build/outputs/apk/debug/`。
 
+推送到 `main` 后，GitHub Actions 会运行单元测试、Android Lint，并构建一个保留 14 天的 Debug APK。
+
+## GitHub 发版
+
+以 `v` 开头的 Git tag 会触发发版流水线。流水线会重新运行测试和 Lint，构建并校验签名 APK，然后创建 GitHub Release，上传：
+
+- `RunTrip-vX.Y.Z.apk`
+- `RunTrip-vX.Y.Z.apk.sha256`
+
+第一次发版前，在 GitHub 仓库的 `Settings → Secrets and variables → Actions` 中配置：
+
+- `RUNTRIP_KEYSTORE_BASE64`：release keystore 文件的 Base64 内容
+- `RUNTRIP_KEYSTORE_PASSWORD`：keystore 密码
+- `RUNTRIP_KEY_ALIAS`：签名 key alias
+- `RUNTRIP_KEY_PASSWORD`：签名 key 密码
+
+可以用下面的命令生成 keystore：
+
+```bash
+keytool -genkeypair -v \
+  -keystore runtrip-release.jks \
+  -alias runtrip \
+  -keyalg RSA \
+  -keysize 4096 \
+  -validity 10000
+```
+
+在 macOS 上复制 Base64 内容：
+
+```bash
+base64 -i runtrip-release.jks | pbcopy
+```
+
+妥善保存 keystore 和密码；后续版本必须使用同一签名，Android 才能覆盖安装升级。
+
+发布示例：
+
+```bash
+git tag -a v0.1.0 -m "RunTrip v0.1.0"
+git push origin v0.1.0
+```
+
+流水线完成后，从仓库的 Releases 页面下载 APK，并可用随附的 SHA-256 文件校验完整性。
+
 ## 技术栈
 
 - Kotlin

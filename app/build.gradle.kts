@@ -4,6 +4,28 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val runTripVersionName = providers
+    .environmentVariable("RUNTRIP_VERSION_NAME")
+    .orNull
+    ?.removePrefix("v")
+    ?: "0.1.0"
+val runTripVersionCode = providers
+    .environmentVariable("RUNTRIP_VERSION_CODE")
+    .orNull
+    ?.toIntOrNull()
+    ?: 1
+
+val releaseKeystorePath = providers.environmentVariable("RUNTRIP_KEYSTORE_PATH").orNull
+val releaseKeystorePassword = providers.environmentVariable("RUNTRIP_KEYSTORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("RUNTRIP_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("RUNTRIP_KEY_PASSWORD").orNull
+val hasReleaseSigning = listOf(
+    releaseKeystorePath,
+    releaseKeystorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { it != null }
+
 android {
     namespace = "com.ddupg.runtrip"
     compileSdk = 36
@@ -12,15 +34,29 @@ android {
         applicationId = "com.ddupg.runtrip"
         minSdk = 36
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = runTripVersionCode
+        versionName = runTripVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(requireNotNull(releaseKeystorePath))
+                storePassword = requireNotNull(releaseKeystorePassword)
+                keyAlias = requireNotNull(releaseKeyAlias)
+                keyPassword = requireNotNull(releaseKeyPassword)
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
