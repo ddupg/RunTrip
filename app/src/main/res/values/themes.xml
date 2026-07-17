@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.RunTrip" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">#F7F8F4</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowBackground">#F7F8F4</item>
+        <item name="android:colorAccent">#B8FF1A</item>
+    </style>
+</resources>
