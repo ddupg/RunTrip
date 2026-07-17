@@ -37,8 +37,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Test, lint, and build debug APK
-        run: ./gradlew test lint assembleDebug --stacktrace
+      - name: Test, lint, and build debug and release APKs
+        run: ./gradlew test lint assembleDebug assembleRelease --stacktrace
 
       - name: Verify Room schema is committed
         run: git diff --exit-code -- app/schemas
