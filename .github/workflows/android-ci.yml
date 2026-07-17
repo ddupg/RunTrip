@@ -40,6 +40,9 @@ jobs:
       - name: Test, lint, and build debug APK
         run: ./gradlew test lint assembleDebug --stacktrace
 
+      - name: Verify Room schema is committed
+        run: git diff --exit-code -- app/schemas
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:

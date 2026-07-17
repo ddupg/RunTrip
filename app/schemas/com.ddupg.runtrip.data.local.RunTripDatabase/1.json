@@ -1,0 +1,115 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "b67ebff7d0ab337af38d6c7c995e9776",
+    "entities": [
+      {
+        "tableName": "races",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `city` TEXT NOT NULL, `raceDate` TEXT NOT NULL, `categoryCode` TEXT NOT NULL, `statusCode` TEXT NOT NULL, `travelDistanceKm` REAL, `hotelBookingStatusCode` TEXT NOT NULL, `hotelName` TEXT, `bookingPlatform` TEXT, `hotelTotalPriceCents` INTEGER, `hotelNotes` TEXT, `raceNotes` TEXT, `createdAtEpochMillis` INTEGER NOT NULL, `updatedAtEpochMillis` INTEGER NOT NULL, `recordVersion` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "city",
+            "columnName": "city",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "raceDate",
+            "columnName": "raceDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoryCode",
+            "columnName": "categoryCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "statusCode",
+            "columnName": "statusCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "travelDistanceKm",
+            "columnName": "travelDistanceKm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "hotelBookingStatusCode",
+            "columnName": "hotelBookingStatusCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hotelName",
+            "columnName": "hotelName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "bookingPlatform",
+            "columnName": "bookingPlatform",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "hotelTotalPriceCents",
+            "columnName": "hotelTotalPriceCents",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "hotelNotes",
+            "columnName": "hotelNotes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "raceNotes",
+            "columnName": "raceNotes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updatedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordVersion",
+            "columnName": "recordVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b67ebff7d0ab337af38d6c7c995e9776')"
+    ]
+  }
+}
