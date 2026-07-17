@@ -39,6 +39,8 @@ Debug APK 生成在 `app/build/outputs/apk/debug/`。
 - `RunTrip-vX.Y.Z.apk`
 - `RunTrip-vX.Y.Z.apk.sha256`
 
+版本号由 `gradle.properties` 中的 `runTripVersionName` 和 `runTripVersionCode` 管理。每次发版先通过独立 PR 更新这两个值；PR 合并后，再在该合并 commit 上创建与 `runTripVersionName` 一致的 `vX.Y.Z` tag。发版流水线会校验二者一致，避免从错误的 commit 发布。
+
 第一次发版前，在 GitHub 仓库的 `Settings → Secrets and variables → Actions` 中配置：
 
 - `RUNTRIP_KEYSTORE_BASE64`：release keystore 文件的 Base64 内容

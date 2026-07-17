@@ -4,16 +4,8 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
-val runTripVersionName = providers
-    .environmentVariable("RUNTRIP_VERSION_NAME")
-    .orNull
-    ?.removePrefix("v")
-    ?: "0.1.0"
-val runTripVersionCode = providers
-    .environmentVariable("RUNTRIP_VERSION_CODE")
-    .orNull
-    ?.toIntOrNull()
-    ?: 1
+val runTripVersionName = providers.gradleProperty("runTripVersionName").get()
+val runTripVersionCode = providers.gradleProperty("runTripVersionCode").get().toInt()
 
 val releaseKeystorePath = providers.environmentVariable("RUNTRIP_KEYSTORE_PATH").orNull
 val releaseKeystorePassword = providers.environmentVariable("RUNTRIP_KEYSTORE_PASSWORD").orNull
