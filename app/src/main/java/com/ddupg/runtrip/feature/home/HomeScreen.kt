@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -35,9 +34,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +47,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -100,6 +102,7 @@ fun HomeRoute(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
@@ -109,7 +112,21 @@ fun HomeScreen(
     onOpenRace: (String) -> Unit,
     onQuickStatus: (String) -> Unit,
 ) {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            LargeTopAppBar(
+                title = {
+                    HomeTitle(
+                        section = uiState.section,
+                        collapsedFraction = scrollBehavior.state.collapsedFraction,
+                    )
+                },
+                scrollBehavior = scrollBehavior,
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddRace,
@@ -120,90 +137,109 @@ fun HomeScreen(
             }
         },
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .statusBarsPadding(),
-        ) {
-            HomeHeader(
-                section = uiState.section,
-                onSelectSection = onSelectSection,
-            )
-            StatusFilters(
-                selectedStatus = uiState.selectedStatus,
-                onSelectStatus = onSelectStatus,
-            )
-
-            if (uiState.monthGroups.isEmpty()) {
+        if (uiState.monthGroups.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            ) {
+                RaceSectionTabs(
+                    section = uiState.section,
+                    onSelectSection = onSelectSection,
+                )
+                StatusFilters(
+                    selectedStatus = uiState.selectedStatus,
+                    onSelectStatus = onSelectStatus,
+                )
                 HomeEmptyState(
                     modifier = Modifier.weight(1f),
                     section = uiState.section,
                     hasStatusFilter = uiState.selectedStatus != null,
                     onAddRace = onAddRace,
                 )
-            } else {
-                RaceTimeline(
-                    modifier = Modifier.weight(1f),
-                    monthGroups = uiState.monthGroups,
-                    onOpenRace = onOpenRace,
-                    onQuickStatus = onQuickStatus,
-                )
             }
+        } else {
+            RaceTimeline(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                section = uiState.section,
+                selectedStatus = uiState.selectedStatus,
+                monthGroups = uiState.monthGroups,
+                onSelectSection = onSelectSection,
+                onSelectStatus = onSelectStatus,
+                onOpenRace = onOpenRace,
+                onQuickStatus = onQuickStatus,
+            )
         }
     }
 }
 
 @Composable
-private fun HomeHeader(
+private fun HomeTitle(
     section: RaceSection,
-    onSelectSection: (RaceSection) -> Unit,
+    collapsedFraction: Float,
 ) {
-    Column(
-        modifier = Modifier.padding(start = 20.dp, top = 12.dp, end = 20.dp),
-    ) {
+    val collapsed = isHomeTitleCollapsed(collapsedFraction)
+    Column {
         Text(
             text = "RunTrip",
-            style = MaterialTheme.typography.headlineLarge,
+            style = if (collapsed) {
+                MaterialTheme.typography.titleLarge
+            } else {
+                MaterialTheme.typography.headlineLarge
+            },
             fontWeight = FontWeight.Black,
             letterSpacing = (-1).sp,
         )
-        Text(
-            text = if (section == RaceSection.UPCOMING) "下一场，从这里出发" else "走过的路，都算数",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(18.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            RaceSection.entries.forEach { item ->
-                val selected = item == section
-                Surface(
-                    onClick = { onSelectSection(item) },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (selected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                    contentColor = if (selected) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+        if (!collapsed) {
+            Text(
+                text = if (section == RaceSection.UPCOMING) "下一场，从这里出发" else "走过的路，都算数",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+internal fun isHomeTitleCollapsed(collapsedFraction: Float): Boolean = collapsedFraction >= 0.5f
+
+@Composable
+private fun RaceSectionTabs(
+    section: RaceSection,
+    onSelectSection: (RaceSection) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, top = 12.dp, end = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        RaceSection.entries.forEach { item ->
+            val selected = item == section
+            Surface(
+                onClick = { onSelectSection(item) },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+                contentColor = if (selected) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            ) {
+                Box(
+                    modifier = Modifier.padding(vertical = 11.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier = Modifier.padding(vertical = 11.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = item.displayName,
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                    }
+                    Text(
+                        text = item.displayName,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
             }
         }
@@ -239,7 +275,11 @@ private fun StatusFilters(
 
 @Composable
 private fun RaceTimeline(
+    section: RaceSection,
+    selectedStatus: RaceStatus?,
     monthGroups: List<RaceMonthGroup>,
+    onSelectSection: (RaceSection) -> Unit,
+    onSelectStatus: (RaceStatus?) -> Unit,
     onOpenRace: (String) -> Unit,
     onQuickStatus: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -248,6 +288,16 @@ private fun RaceTimeline(
         modifier = modifier,
         contentPadding = PaddingValues(bottom = 96.dp),
     ) {
+        item(key = "home-controls") {
+            RaceSectionTabs(
+                section = section,
+                onSelectSection = onSelectSection,
+            )
+            StatusFilters(
+                selectedStatus = selectedStatus,
+                onSelectStatus = onSelectStatus,
+            )
+        }
         monthGroups.forEach { group ->
             item(key = "month-${group.month}") {
                 MonthHeader(group.month)
