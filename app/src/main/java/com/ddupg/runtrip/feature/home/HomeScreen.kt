@@ -308,18 +308,18 @@ private fun RaceTimelineRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Column(
-            modifier = Modifier.width(64.dp),
+            modifier = Modifier.width(56.dp),
             horizontalAlignment = Alignment.Start,
         ) {
             Text(
                 text = race.raceDate.dayOfMonth.toString().padStart(2, '0'),
                 fontFamily = FontFamily.Monospace,
-                fontSize = 34.sp,
-                lineHeight = 34.sp,
+                fontSize = 30.sp,
+                lineHeight = 30.sp,
                 fontWeight = FontWeight.Black,
             )
             Text(
@@ -334,7 +334,7 @@ private fun RaceTimelineRow(
                 Text(
                     text = race.name,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -344,13 +344,13 @@ private fun RaceTimelineRow(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(Modifier.height(3.dp))
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = "${race.city} · ${race.category.compactDisplayName()}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(7.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -366,7 +366,7 @@ private fun RaceTimelineRow(
                     )
                 }
             }
-            Spacer(Modifier.height(9.dp))
+            Spacer(Modifier.height(6.dp))
             CompactMetadata(
                 icon = { Icon(Icons.Outlined.Hotel, contentDescription = null) },
                 text = race.hotelBookingStatus.displayName,
@@ -388,7 +388,7 @@ private fun StatusBadge(
     ) {
         Text(
             text = status.displayName,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelLarge,
         )
     }
