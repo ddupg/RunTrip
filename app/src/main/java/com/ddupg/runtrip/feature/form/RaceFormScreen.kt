@@ -231,44 +231,50 @@ private fun RaceFormContent(
     ) {
         item { FormSectionTitle("比赛信息", "必填") }
         item {
-            OutlinedTextField(
-                value = uiState.name,
-                onValueChange = onNameChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("比赛名称") },
-                singleLine = true,
-                isError = uiState.errors.name != null,
-                supportingText = uiState.errors.name?.let { error -> { Text(error) } },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            )
+            FocusedTextFieldTheme {
+                OutlinedTextField(
+                    value = uiState.name,
+                    onValueChange = onNameChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("比赛名称") },
+                    singleLine = true,
+                    isError = uiState.errors.name != null,
+                    supportingText = uiState.errors.name?.let { error -> { Text(error) } },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                )
+            }
         }
         item {
-            OutlinedTextField(
-                value = uiState.city,
-                onValueChange = onCityChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("城市") },
-                singleLine = true,
-                isError = uiState.errors.city != null,
-                supportingText = uiState.errors.city?.let { error -> { Text(error) } },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            )
+            FocusedTextFieldTheme {
+                OutlinedTextField(
+                    value = uiState.city,
+                    onValueChange = onCityChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("城市") },
+                    singleLine = true,
+                    isError = uiState.errors.city != null,
+                    supportingText = uiState.errors.city?.let { error -> { Text(error) } },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                )
+            }
         }
         item {
-            OutlinedTextField(
-                value = uiState.raceDate.toChineseDate(),
-                onValueChange = {},
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onOpenDatePicker),
-                readOnly = true,
-                label = { Text("比赛日期") },
-                trailingIcon = {
-                    IconButton(onClick = onOpenDatePicker) {
-                        Icon(Icons.Outlined.CalendarMonth, contentDescription = "选择比赛日期")
-                    }
-                },
-            )
+            FocusedTextFieldTheme {
+                OutlinedTextField(
+                    value = uiState.raceDate.toChineseDate(),
+                    onValueChange = {},
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenDatePicker),
+                    readOnly = true,
+                    label = { Text("比赛日期") },
+                    trailingIcon = {
+                        IconButton(onClick = onOpenDatePicker) {
+                            Icon(Icons.Outlined.CalendarMonth, contentDescription = "选择比赛日期")
+                        }
+                    },
+                )
+            }
         }
         item {
             ChoiceChips(
@@ -294,20 +300,22 @@ private fun RaceFormContent(
         item { SectionDivider() }
         item { FormSectionTitle("路程", "选填") }
         item {
-            OutlinedTextField(
-                value = uiState.travelDistance,
-                onValueChange = onTravelDistanceChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("路程距离") },
-                suffix = { Text("km") },
-                singleLine = true,
-                isError = uiState.errors.travelDistance != null,
-                supportingText = uiState.errors.travelDistance?.let { error -> { Text(error) } },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
-                    imeAction = ImeAction.Next,
-                ),
-            )
+            FocusedTextFieldTheme {
+                OutlinedTextField(
+                    value = uiState.travelDistance,
+                    onValueChange = onTravelDistanceChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("路程距离") },
+                    suffix = { Text("km") },
+                    singleLine = true,
+                    isError = uiState.errors.travelDistance != null,
+                    supportingText = uiState.errors.travelDistance?.let { error -> { Text(error) } },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Next,
+                    ),
+                )
+            }
         }
 
         item { SectionDivider() }
@@ -323,61 +331,71 @@ private fun RaceFormContent(
             )
         }
         item {
-            OutlinedTextField(
-                value = uiState.hotelName,
-                onValueChange = onHotelNameChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("酒店名称") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            )
+            FocusedTextFieldTheme {
+                OutlinedTextField(
+                    value = uiState.hotelName,
+                    onValueChange = onHotelNameChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("酒店名称") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                )
+            }
         }
         item {
-            OutlinedTextField(
-                value = uiState.bookingPlatform,
-                onValueChange = onBookingPlatformChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("预订平台") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            )
+            FocusedTextFieldTheme {
+                OutlinedTextField(
+                    value = uiState.bookingPlatform,
+                    onValueChange = onBookingPlatformChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("预订平台") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                )
+            }
         }
         item {
-            OutlinedTextField(
-                value = uiState.hotelPrice,
-                onValueChange = onHotelPriceChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("酒店总价") },
-                prefix = { Text("¥") },
-                singleLine = true,
-                isError = uiState.errors.hotelPrice != null,
-                supportingText = uiState.errors.hotelPrice?.let { error -> { Text(error) } },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
-                    imeAction = ImeAction.Next,
-                ),
-            )
+            FocusedTextFieldTheme {
+                OutlinedTextField(
+                    value = uiState.hotelPrice,
+                    onValueChange = onHotelPriceChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("酒店总价") },
+                    prefix = { Text("¥") },
+                    singleLine = true,
+                    isError = uiState.errors.hotelPrice != null,
+                    supportingText = uiState.errors.hotelPrice?.let { error -> { Text(error) } },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Next,
+                    ),
+                )
+            }
         }
         item {
-            OutlinedTextField(
-                value = uiState.hotelNotes,
-                onValueChange = onHotelNotesChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("酒店备注") },
-                minLines = 3,
-            )
+            FocusedTextFieldTheme {
+                OutlinedTextField(
+                    value = uiState.hotelNotes,
+                    onValueChange = onHotelNotesChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("酒店备注") },
+                    minLines = 3,
+                )
+            }
         }
 
         item { SectionDivider() }
         item { FormSectionTitle("比赛备注", "选填") }
         item {
-            OutlinedTextField(
-                value = uiState.raceNotes,
-                onValueChange = onRaceNotesChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("备注") },
-                minLines = 4,
-            )
+            FocusedTextFieldTheme {
+                OutlinedTextField(
+                    value = uiState.raceNotes,
+                    onValueChange = onRaceNotesChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("备注") },
+                    minLines = 4,
+                )
+            }
         }
 
         uiState.saveError?.let { error ->
@@ -409,6 +427,20 @@ private fun RaceFormContent(
             }
         }
     }
+}
+
+@Composable
+private fun FocusedTextFieldTheme(content: @Composable () -> Unit) {
+    val colorScheme = MaterialTheme.colorScheme
+    MaterialTheme(
+        colorScheme = colorScheme.copy(
+            primary = colorScheme.onSurface,
+            onPrimary = colorScheme.surface,
+            primaryContainer = colorScheme.onSurface,
+            onPrimaryContainer = colorScheme.surface,
+        ),
+        content = content,
+    )
 }
 
 @Composable
