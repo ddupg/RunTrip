@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -18,7 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -124,6 +125,24 @@ fun RaceFormScreen(
                         Icon(Icons.Outlined.ArrowBack, contentDescription = "返回")
                     }
                 },
+                actions = {
+                    if (!uiState.isLoading && uiState.loadError == null) {
+                        IconButton(
+                            onClick = onSave,
+                            enabled = !uiState.isSaving,
+                        ) {
+                            if (uiState.isSaving) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(22.dp),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Icon(Icons.Outlined.Check, contentDescription = "保存")
+                            }
+                        }
+                    }
+                },
             )
         },
     ) { innerPadding ->
@@ -167,7 +186,6 @@ fun RaceFormScreen(
                     onHotelPriceChange = onHotelPriceChange,
                     onHotelNotesChange = onHotelNotesChange,
                     onRaceNotesChange = onRaceNotesChange,
-                    onSave = onSave,
                 )
             }
         }
@@ -221,7 +239,6 @@ private fun RaceFormContent(
     onHotelPriceChange: (String) -> Unit,
     onHotelNotesChange: (String) -> Unit,
     onRaceNotesChange: (String) -> Unit,
-    onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -405,25 +422,6 @@ private fun RaceFormContent(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
-            }
-        }
-        item {
-            Button(
-                onClick = onSave,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                enabled = !uiState.isSaving,
-            ) {
-                if (uiState.isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.height(22.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Text("保存")
-                }
             }
         }
     }
