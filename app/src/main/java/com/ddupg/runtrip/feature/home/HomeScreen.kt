@@ -353,7 +353,7 @@ private fun RaceTimelineRow(
             Spacer(Modifier.height(7.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 StatusBadge(
                     status = race.status,
@@ -365,12 +365,11 @@ private fun RaceTimelineRow(
                         text = distance.formatDistance(),
                     )
                 }
+                CompactMetadata(
+                    icon = { Icon(Icons.Outlined.Hotel, contentDescription = null) },
+                    text = race.hotelBookingStatus.displayName,
+                )
             }
-            Spacer(Modifier.height(6.dp))
-            CompactMetadata(
-                icon = { Icon(Icons.Outlined.Hotel, contentDescription = null) },
-                text = race.hotelBookingStatus.displayName,
-            )
         }
     }
 }
