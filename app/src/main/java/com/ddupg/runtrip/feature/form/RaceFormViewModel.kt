@@ -3,10 +3,12 @@ package com.ddupg.runtrip.feature.form
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -61,6 +63,14 @@ class RaceFormViewModel(
     fun updateCategory(value: RaceCategory) = updateState { copy(category = value, saveError = null) }
 
     fun updateStatus(value: RaceStatus) = updateState { copy(status = value, saveError = null) }
+
+    fun updateCaaRaceLevel(value: CaaRaceLevel?) = updateState {
+        copy(caaRaceLevel = value, saveError = null)
+    }
+
+    fun updateWorldAthleticsLabel(value: WorldAthleticsLabel?) = updateState {
+        copy(worldAthleticsLabel = value, saveError = null)
+    }
 
     fun updateTravelDistance(value: String) = updateState {
         copy(
@@ -141,6 +151,8 @@ private fun Race.toFormState(): RaceFormUiState = RaceFormUiState(
     raceDate = raceDate,
     category = category,
     status = status,
+    caaRaceLevel = caaRaceLevel,
+    worldAthleticsLabel = worldAthleticsLabel,
     travelDistance = travelDistanceKm?.toPlainString().orEmpty(),
     hotelBookingStatus = hotelBookingStatus,
     hotelName = hotelName.orEmpty(),

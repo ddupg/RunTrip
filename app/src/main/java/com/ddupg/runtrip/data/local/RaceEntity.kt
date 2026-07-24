@@ -2,10 +2,12 @@ package com.ddupg.runtrip.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import java.time.LocalDate
 
 @Entity(tableName = "races")
@@ -16,6 +18,8 @@ data class RaceEntity(
     val raceDate: String,
     val categoryCode: String,
     val statusCode: String,
+    val caaRaceLevelCode: String?,
+    val worldAthleticsLabelCode: String?,
     val travelDistanceKm: Double?,
     val hotelBookingStatusCode: String,
     val hotelName: String?,
@@ -35,6 +39,8 @@ fun RaceEntity.toDomain(): Race = Race(
     raceDate = LocalDate.parse(raceDate),
     category = RaceCategory.fromCode(categoryCode),
     status = RaceStatus.fromCode(statusCode),
+    caaRaceLevel = caaRaceLevelCode?.let { CaaRaceLevel.fromCode(it) },
+    worldAthleticsLabel = worldAthleticsLabelCode?.let { WorldAthleticsLabel.fromCode(it) },
     travelDistanceKm = travelDistanceKm,
     hotelBookingStatus = HotelBookingStatus.fromCode(hotelBookingStatusCode),
     hotelName = hotelName,
@@ -54,6 +60,8 @@ fun Race.toEntity(): RaceEntity = RaceEntity(
     raceDate = raceDate.toString(),
     categoryCode = category.code,
     statusCode = status.code,
+    caaRaceLevelCode = caaRaceLevel?.code,
+    worldAthleticsLabelCode = worldAthleticsLabel?.code,
     travelDistanceKm = travelDistanceKm,
     hotelBookingStatusCode = hotelBookingStatus.code,
     hotelName = hotelName,

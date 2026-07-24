@@ -1,9 +1,11 @@
 package com.ddupg.runtrip.feature.form
 
+import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceInput
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import java.math.BigDecimal
 import java.time.LocalDate
 
@@ -23,6 +25,8 @@ data class RaceFormUiState(
     val raceDate: LocalDate = LocalDate.now(),
     val category: RaceCategory = RaceCategory.MARATHON,
     val status: RaceStatus = RaceStatus.WATCHING,
+    val caaRaceLevel: CaaRaceLevel? = null,
+    val worldAthleticsLabel: WorldAthleticsLabel? = null,
     val travelDistance: String = "",
     val hotelBookingStatus: HotelBookingStatus = HotelBookingStatus.NOT_BOOKED,
     val hotelName: String = "",
@@ -81,6 +85,8 @@ fun validateRaceForm(state: RaceFormUiState): RaceFormValidationResult {
             raceDate = state.raceDate,
             category = state.category,
             status = state.status,
+            caaRaceLevel = state.caaRaceLevel,
+            worldAthleticsLabel = state.worldAthleticsLabel,
             travelDistanceKm = distance,
             hotelBookingStatus = state.hotelBookingStatus,
             hotelName = state.hotelName,

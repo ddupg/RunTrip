@@ -48,18 +48,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
 import com.ddupg.runtrip.ui.theme.RunTripTheme
 import java.time.DayOfWeek
@@ -396,9 +402,11 @@ private fun RaceTimelineRow(
             }
             Spacer(Modifier.height(2.dp))
             Text(
-                text = "${race.city} · ${race.category.compactDisplayName()}",
+                text = formatRaceTimelineSummary(race),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(7.dp))
             Row(
@@ -576,6 +584,22 @@ private fun RaceCategory.compactDisplayName(): String = when (this) {
     RaceCategory.OTHER -> "其他"
 }
 
+internal fun formatRaceTimelineSummary(race: Race): AnnotatedString = buildAnnotatedString {
+    append(race.city)
+    append(" · ")
+    append(race.category.compactDisplayName())
+    race.caaRaceLevel?.let { level ->
+        append(" · ")
+        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+            append(level.displayName)
+        }
+    }
+    race.worldAthleticsLabel?.let { label ->
+        append(" · ")
+        append(label.displayName)
+    }
+}
+
 private fun DayOfWeek.chineseShortName(): String = when (this) {
     DayOfWeek.MONDAY -> "周一"
     DayOfWeek.TUESDAY -> "周二"
@@ -618,6 +642,8 @@ private fun previewRace(): Race = Race(
     raceDate = LocalDate.of(2026, 11, 15),
     category = RaceCategory.MARATHON,
     status = RaceStatus.DRAW_WON,
+    caaRaceLevel = CaaRaceLevel.A1,
+    worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
     travelDistanceKm = 350.0,
     hotelBookingStatus = HotelBookingStatus.BOOKED,
     hotelName = "万豪万枫",

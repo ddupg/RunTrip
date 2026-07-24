@@ -2,10 +2,12 @@ package com.ddupg.runtrip.data
 
 import com.ddupg.runtrip.data.local.toDomain
 import com.ddupg.runtrip.data.local.toEntity
+import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -20,6 +22,8 @@ class RaceEntityTest {
             raceDate = LocalDate.of(2026, 11, 15),
             category = RaceCategory.MARATHON,
             status = RaceStatus.DRAW_WON,
+            caaRaceLevel = CaaRaceLevel.A1,
+            worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
             travelDistanceKm = 350.0,
             hotelBookingStatus = HotelBookingStatus.BOOKED,
             hotelName = "万豪万枫",
@@ -37,6 +41,8 @@ class RaceEntityTest {
         assertEquals("2026-11-15", entity.raceDate)
         assertEquals("MARATHON", entity.categoryCode)
         assertEquals("DRAW_WON", entity.statusCode)
+        assertEquals("A1", entity.caaRaceLevelCode)
+        assertEquals("PLATINUM", entity.worldAthleticsLabelCode)
         assertEquals("BOOKED", entity.hotelBookingStatusCode)
         assertEquals(race, entity.toDomain())
     }
