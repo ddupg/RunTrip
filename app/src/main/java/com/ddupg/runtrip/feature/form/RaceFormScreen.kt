@@ -50,9 +50,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
 import com.ddupg.runtrip.ui.theme.RunTripTheme
 import java.time.Instant
@@ -83,6 +85,8 @@ fun RaceFormRoute(
         onRaceDateChange = viewModel::updateRaceDate,
         onCategoryChange = viewModel::updateCategory,
         onStatusChange = viewModel::updateStatus,
+        onCaaRaceLevelChange = viewModel::updateCaaRaceLevel,
+        onWorldAthleticsLabelChange = viewModel::updateWorldAthleticsLabel,
         onTravelDistanceChange = viewModel::updateTravelDistance,
         onHotelBookingStatusChange = viewModel::updateHotelBookingStatus,
         onHotelNameChange = viewModel::updateHotelName,
@@ -105,6 +109,8 @@ fun RaceFormScreen(
     onRaceDateChange: (LocalDate) -> Unit,
     onCategoryChange: (RaceCategory) -> Unit,
     onStatusChange: (RaceStatus) -> Unit,
+    onCaaRaceLevelChange: (CaaRaceLevel?) -> Unit,
+    onWorldAthleticsLabelChange: (WorldAthleticsLabel?) -> Unit,
     onTravelDistanceChange: (String) -> Unit,
     onHotelBookingStatusChange: (HotelBookingStatus) -> Unit,
     onHotelNameChange: (String) -> Unit,
@@ -179,6 +185,8 @@ fun RaceFormScreen(
                     onOpenDatePicker = { showDatePicker = true },
                     onCategoryChange = onCategoryChange,
                     onStatusChange = onStatusChange,
+                    onCaaRaceLevelChange = onCaaRaceLevelChange,
+                    onWorldAthleticsLabelChange = onWorldAthleticsLabelChange,
                     onTravelDistanceChange = onTravelDistanceChange,
                     onHotelBookingStatusChange = onHotelBookingStatusChange,
                     onHotelNameChange = onHotelNameChange,
@@ -232,6 +240,8 @@ private fun RaceFormContent(
     onOpenDatePicker: () -> Unit,
     onCategoryChange: (RaceCategory) -> Unit,
     onStatusChange: (RaceStatus) -> Unit,
+    onCaaRaceLevelChange: (CaaRaceLevel?) -> Unit,
+    onWorldAthleticsLabelChange: (WorldAthleticsLabel?) -> Unit,
     onTravelDistanceChange: (String) -> Unit,
     onHotelBookingStatusChange: (HotelBookingStatus) -> Unit,
     onHotelNameChange: (String) -> Unit,
@@ -311,6 +321,29 @@ private fun RaceFormContent(
                 key = RaceStatus::code,
                 displayName = RaceStatus::displayName,
                 onSelected = onStatusChange,
+            )
+        }
+
+        item { SectionDivider() }
+        item { FormSectionTitle("赛事等级", "选填") }
+        item {
+            OptionalChoiceChips(
+                label = "中国田协等级",
+                values = CaaRaceLevel.entries,
+                selected = uiState.caaRaceLevel,
+                key = CaaRaceLevel::code,
+                displayName = CaaRaceLevel::displayName,
+                onSelected = onCaaRaceLevelChange,
+            )
+        }
+        item {
+            OptionalChoiceChips(
+                label = "World Athletics Label",
+                values = WorldAthleticsLabel.entries,
+                selected = uiState.worldAthleticsLabel,
+                key = WorldAthleticsLabel::code,
+                displayName = WorldAthleticsLabel::bilingualDisplayName,
+                onSelected = onWorldAthleticsLabelChange,
             )
         }
 
@@ -497,6 +530,40 @@ private fun <T> ChoiceChips(
     }
 }
 
+@Composable
+private fun <T> OptionalChoiceChips(
+    label: String,
+    values: List<T>,
+    selected: T?,
+    key: (T) -> String,
+    displayName: (T) -> String,
+    onSelected: (T?) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                FilterChip(
+                    selected = selected == null,
+                    onClick = { onSelected(null) },
+                    label = { Text("未填写") },
+                )
+            }
+            items(values, key = key) { value ->
+                FilterChip(
+                    selected = value == selected,
+                    onClick = { onSelected(value) },
+                    label = { Text(displayName(value)) },
+                )
+            }
+        }
+    }
+}
+
 private fun LocalDate.toUtcMillis(): Long =
     atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
 
@@ -517,6 +584,8 @@ private fun RaceFormScreenPreview() {
             onRaceDateChange = {},
             onCategoryChange = {},
             onStatusChange = {},
+            onCaaRaceLevelChange = {},
+            onWorldAthleticsLabelChange = {},
             onTravelDistanceChange = {},
             onHotelBookingStatusChange = {},
             onHotelNameChange = {},

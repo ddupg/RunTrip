@@ -54,10 +54,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
 import com.ddupg.runtrip.ui.theme.RunTripTheme
 import java.time.LocalDate
@@ -231,6 +233,24 @@ private fun RaceDetailContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { RaceHero(race) }
+        if (race.caaRaceLevel != null || race.worldAthleticsLabel != null) {
+            item {
+                DetailSection(title = "赛事等级") {
+                    race.caaRaceLevel?.let { level ->
+                        LevelDetailRow(
+                            label = "中国田协",
+                            value = level.displayName,
+                        )
+                    }
+                    race.worldAthleticsLabel?.let { label ->
+                        LevelDetailRow(
+                            label = "世界田联",
+                            value = label.bilingualDisplayName,
+                        )
+                    }
+                }
+            }
+        }
         item {
             DetailSection(title = "行程") {
                 DetailRow(
@@ -398,6 +418,33 @@ private fun DetailRow(
     }
 }
 
+@Composable
+private fun LevelDetailRow(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.width(86.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
 private fun String?.orNotFilled(): String = this?.takeIf { it.isNotBlank() } ?: "未填写"
 
 @Preview(showBackground = true)
@@ -423,6 +470,8 @@ private fun previewRace(): Race = Race(
     raceDate = LocalDate.of(2026, 11, 15),
     category = RaceCategory.MARATHON,
     status = RaceStatus.DRAW_WON,
+    caaRaceLevel = CaaRaceLevel.A1,
+    worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
     travelDistanceKm = 350.0,
     hotelBookingStatus = HotelBookingStatus.BOOKED,
     hotelName = "万豪万枫",

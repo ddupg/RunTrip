@@ -1,5 +1,6 @@
 package com.ddupg.runtrip.feature.detail
 
+import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -23,5 +24,13 @@ class RaceDetailFormatTest {
     fun formatsDistanceWithoutUnnecessaryDecimal() {
         assertEquals("350 km", formatDistance(350.0))
         assertEquals("350.5 km", formatDistance(350.5))
+    }
+
+    @Test
+    fun worldAthleticsLabelHasBilingualDetailText() {
+        assertEquals(
+            "白金标（Platinum）",
+            WorldAthleticsLabel.PLATINUM.bilingualDisplayName,
+        )
     }
 }

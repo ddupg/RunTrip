@@ -1,8 +1,10 @@
 package com.ddupg.runtrip.feature.form
 
+import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -40,6 +42,27 @@ class RaceFormStateTest {
 
         assertNull(result.input)
         assertTrue(result.errors.travelDistance != null)
+    }
+
+    @Test
+    fun optionalRaceLevelsAreIncludedInValidatedInput() {
+        val result = validateRaceForm(
+            validState().copy(
+                caaRaceLevel = CaaRaceLevel.A1,
+                worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
+            ),
+        )
+
+        assertEquals(CaaRaceLevel.A1, result.input?.caaRaceLevel)
+        assertEquals(WorldAthleticsLabel.PLATINUM, result.input?.worldAthleticsLabel)
+    }
+
+    @Test
+    fun raceLevelsDefaultToNotFilled() {
+        val result = validateRaceForm(validState())
+
+        assertNull(result.input?.caaRaceLevel)
+        assertNull(result.input?.worldAthleticsLabel)
     }
 
     private fun validState(): RaceFormUiState = RaceFormUiState(

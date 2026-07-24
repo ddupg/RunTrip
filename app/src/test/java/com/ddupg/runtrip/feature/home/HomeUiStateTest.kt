@@ -1,9 +1,11 @@
 package com.ddupg.runtrip.feature.home
 
+import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -71,6 +73,27 @@ class HomeUiStateTest {
 
         assertEquals(listOf("newer", "older"), history.map { it.id })
     }
+
+    @Test
+    fun timelineSummaryShowsCaaBeforeEnglishWorldAthleticsLabel() {
+        val race = race("labelled", today, RaceStatus.WATCHING).copy(
+            caaRaceLevel = CaaRaceLevel.A1,
+            worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
+        )
+
+        assertEquals(
+            "杭州 · 全马 · A1 · Platinum",
+            formatRaceTimelineSummary(race).text,
+        )
+    }
+
+    @Test
+    fun timelineSummaryOmitsMissingRaceLevels() {
+        assertEquals(
+            "杭州 · 全马",
+            formatRaceTimelineSummary(race("unlabelled", today, RaceStatus.WATCHING)).text,
+        )
+    }
 }
 
 private fun race(id: String, date: LocalDate, status: RaceStatus): Race = Race(
@@ -80,6 +103,8 @@ private fun race(id: String, date: LocalDate, status: RaceStatus): Race = Race(
     raceDate = date,
     category = RaceCategory.MARATHON,
     status = status,
+    caaRaceLevel = null,
+    worldAthleticsLabel = null,
     travelDistanceKm = null,
     hotelBookingStatus = HotelBookingStatus.NOT_BOOKED,
     hotelName = null,

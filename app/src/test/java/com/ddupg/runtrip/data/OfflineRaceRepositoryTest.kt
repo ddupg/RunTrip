@@ -2,10 +2,12 @@ package com.ddupg.runtrip.data
 
 import com.ddupg.runtrip.data.local.RaceDao
 import com.ddupg.runtrip.data.local.RaceEntity
+import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceInput
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.OfflineRaceRepository
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
@@ -33,6 +35,8 @@ class OfflineRaceRepositoryTest {
                 raceDate = LocalDate.of(2026, 11, 15),
                 category = RaceCategory.MARATHON,
                 status = RaceStatus.DRAW_WON,
+                caaRaceLevel = CaaRaceLevel.A1,
+                worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
                 travelDistanceKm = 350.0,
                 hotelBookingStatus = HotelBookingStatus.BOOKED,
                 hotelName = " 万豪万枫 ",
@@ -46,6 +50,8 @@ class OfflineRaceRepositoryTest {
         assertEquals("横店马拉松", saved.name)
         assertEquals("金华", saved.city)
         assertEquals("DRAW_WON", saved.statusCode)
+        assertEquals("A1", saved.caaRaceLevelCode)
+        assertEquals("PLATINUM", saved.worldAthleticsLabelCode)
         assertEquals("BOOKED", saved.hotelBookingStatusCode)
         assertEquals(1, saved.recordVersion)
     }

@@ -72,6 +72,8 @@ private fun RaceInput.toRace(
     raceDate = raceDate,
     category = category,
     status = status,
+    caaRaceLevel = caaRaceLevel,
+    worldAthleticsLabel = worldAthleticsLabel,
     travelDistanceKm = travelDistanceKm,
     hotelBookingStatus = hotelBookingStatus,
     hotelName = hotelName,
