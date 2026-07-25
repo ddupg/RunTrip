@@ -7,11 +7,17 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val LightColors = lightColorScheme(
+internal val RunTripLightColors = lightColorScheme(
     primary = RunTripLime,
     onPrimary = RunTripInk,
     primaryContainer = RunTripLime,
     onPrimaryContainer = RunTripInk,
+    secondary = RunTripOlive,
+    onSecondary = RunTripPaper,
+    secondaryContainer = RunTripOlive,
+    onSecondaryContainer = RunTripPaper,
+    tertiary = RunTripLime,
+    onTertiary = RunTripInk,
     background = RunTripPaper,
     onBackground = RunTripInk,
     surface = RunTripPaper,
@@ -22,11 +28,17 @@ private val LightColors = lightColorScheme(
     outlineVariant = Color(0xFFD4D7CF),
 )
 
-private val DarkColors = darkColorScheme(
+internal val RunTripDarkColors = darkColorScheme(
     primary = RunTripLimeDark,
     onPrimary = RunTripInk,
     primaryContainer = RunTripLimeDark,
     onPrimaryContainer = RunTripInk,
+    secondary = RunTripLimeDark,
+    onSecondary = RunTripInk,
+    secondaryContainer = RunTripNightVariant,
+    onSecondaryContainer = Color(0xFFF2F4ED),
+    tertiary = RunTripLimeDark,
+    onTertiary = RunTripInk,
     background = RunTripNight,
     onBackground = Color(0xFFF2F4ED),
     surface = RunTripNight,
@@ -43,7 +55,7 @@ fun RunTripTheme(
     content: @Composable () -> Unit,
 ) {
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = if (darkTheme) RunTripDarkColors else RunTripLightColors,
         typography = RunTripTypography,
         content = content,
     )
