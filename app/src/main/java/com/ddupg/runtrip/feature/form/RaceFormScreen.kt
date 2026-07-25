@@ -20,11 +20,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,6 +56,11 @@ import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
+import com.ddupg.runtrip.ui.components.RunTripControlTheme
+import com.ddupg.runtrip.ui.components.RunTripFilterChip
+import com.ddupg.runtrip.ui.components.runTripConfirmButtonColors
+import com.ddupg.runtrip.ui.components.runTripDatePickerColors
+import com.ddupg.runtrip.ui.components.runTripTextButtonColors
 import com.ddupg.runtrip.ui.theme.RunTripTheme
 import java.time.Instant
 import java.time.LocalDate
@@ -203,10 +208,12 @@ fun RaceFormScreen(
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = uiState.raceDate.toUtcMillis(),
         )
+        val datePickerColors = runTripDatePickerColors()
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
+            colors = datePickerColors,
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { selectedMillis ->
                             onRaceDateChange(
@@ -217,17 +224,24 @@ fun RaceFormScreen(
                         }
                         showDatePicker = false
                     },
+                    colors = runTripConfirmButtonColors(),
                 ) {
                     Text("确定")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
+                TextButton(
+                    onClick = { showDatePicker = false },
+                    colors = runTripTextButtonColors(),
+                ) {
                     Text("取消")
                 }
             },
         ) {
-            DatePicker(state = datePickerState)
+            DatePicker(
+                state = datePickerState,
+                colors = datePickerColors,
+            )
         }
     }
 }
@@ -258,7 +272,7 @@ private fun RaceFormContent(
     ) {
         item { FormSectionTitle("比赛信息", "必填") }
         item {
-            FocusedTextFieldTheme {
+            RunTripControlTheme {
                 OutlinedTextField(
                     value = uiState.name,
                     onValueChange = onNameChange,
@@ -272,7 +286,7 @@ private fun RaceFormContent(
             }
         }
         item {
-            FocusedTextFieldTheme {
+            RunTripControlTheme {
                 OutlinedTextField(
                     value = uiState.city,
                     onValueChange = onCityChange,
@@ -286,7 +300,7 @@ private fun RaceFormContent(
             }
         }
         item {
-            FocusedTextFieldTheme {
+            RunTripControlTheme {
                 OutlinedTextField(
                     value = uiState.raceDate.toChineseDate(),
                     onValueChange = {},
@@ -350,7 +364,7 @@ private fun RaceFormContent(
         item { SectionDivider() }
         item { FormSectionTitle("路程", "选填") }
         item {
-            FocusedTextFieldTheme {
+            RunTripControlTheme {
                 OutlinedTextField(
                     value = uiState.travelDistance,
                     onValueChange = onTravelDistanceChange,
@@ -381,7 +395,7 @@ private fun RaceFormContent(
             )
         }
         item {
-            FocusedTextFieldTheme {
+            RunTripControlTheme {
                 OutlinedTextField(
                     value = uiState.hotelName,
                     onValueChange = onHotelNameChange,
@@ -393,7 +407,7 @@ private fun RaceFormContent(
             }
         }
         item {
-            FocusedTextFieldTheme {
+            RunTripControlTheme {
                 OutlinedTextField(
                     value = uiState.bookingPlatform,
                     onValueChange = onBookingPlatformChange,
@@ -405,7 +419,7 @@ private fun RaceFormContent(
             }
         }
         item {
-            FocusedTextFieldTheme {
+            RunTripControlTheme {
                 OutlinedTextField(
                     value = uiState.hotelPrice,
                     onValueChange = onHotelPriceChange,
@@ -423,7 +437,7 @@ private fun RaceFormContent(
             }
         }
         item {
-            FocusedTextFieldTheme {
+            RunTripControlTheme {
                 OutlinedTextField(
                     value = uiState.hotelNotes,
                     onValueChange = onHotelNotesChange,
@@ -437,7 +451,7 @@ private fun RaceFormContent(
         item { SectionDivider() }
         item { FormSectionTitle("比赛备注", "选填") }
         item {
-            FocusedTextFieldTheme {
+            RunTripControlTheme {
                 OutlinedTextField(
                     value = uiState.raceNotes,
                     onValueChange = onRaceNotesChange,
@@ -458,20 +472,6 @@ private fun RaceFormContent(
             }
         }
     }
-}
-
-@Composable
-private fun FocusedTextFieldTheme(content: @Composable () -> Unit) {
-    val colorScheme = MaterialTheme.colorScheme
-    MaterialTheme(
-        colorScheme = colorScheme.copy(
-            primary = colorScheme.onSurface,
-            onPrimary = colorScheme.surface,
-            primaryContainer = colorScheme.onSurface,
-            onPrimaryContainer = colorScheme.surface,
-        ),
-        content = content,
-    )
 }
 
 @Composable
@@ -520,10 +520,10 @@ private fun <T> ChoiceChips(
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(values, key = key) { value ->
-                FilterChip(
+                RunTripFilterChip(
                     selected = value == selected,
                     onClick = { onSelected(value) },
-                    label = { Text(displayName(value)) },
+                    label = displayName(value),
                 )
             }
         }
@@ -547,17 +547,17 @@ private fun <T> OptionalChoiceChips(
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
-                FilterChip(
+                RunTripFilterChip(
                     selected = selected == null,
                     onClick = { onSelected(null) },
-                    label = { Text("未填写") },
+                    label = "未填写",
                 )
             }
             items(values, key = key) { value ->
-                FilterChip(
+                RunTripFilterChip(
                     selected = value == selected,
                     onClick = { onSelected(value) },
-                    label = { Text(displayName(value)) },
+                    label = displayName(value),
                 )
             }
         }

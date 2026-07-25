@@ -28,7 +28,6 @@ import androidx.compose.material.icons.outlined.Hotel
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -67,6 +66,7 @@ import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
+import com.ddupg.runtrip.ui.components.RunTripFilterChip
 import com.ddupg.runtrip.ui.theme.RunTripTheme
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -263,17 +263,17 @@ private fun StatusFilters(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
-            FilterChip(
+            RunTripFilterChip(
                 selected = selectedStatus == null,
                 onClick = { onSelectStatus(null) },
-                label = { Text("全部") },
+                label = "全部",
             )
         }
         items(RaceStatus.entries, key = RaceStatus::code) { status ->
-            FilterChip(
+            RunTripFilterChip(
                 selected = selectedStatus == status,
                 onClick = { onSelectStatus(status) },
-                label = { Text(status.displayName) },
+                label = status.displayName,
             )
         }
     }
@@ -551,25 +551,41 @@ private fun QuickStatusSheet(
                 )
             }
             RaceStatus.entries.forEach { status ->
-                Row(
+                val selected = status == race.status
+                Surface(
+                    onClick = { onSelectStatus(status) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onSelectStatus(status) }
-                        .padding(horizontal = 20.dp, vertical = 15.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    },
+                    contentColor = if (selected) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                 ) {
-                    Text(
-                        text = status.displayName,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = if (status == race.status) FontWeight.Bold else FontWeight.Normal,
-                    )
-                    if (status == race.status) {
-                        Icon(
-                            imageVector = Icons.Outlined.Check,
-                            contentDescription = "当前状态",
-                            tint = MaterialTheme.colorScheme.primary,
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = status.displayName,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                         )
+                        if (selected) {
+                            Icon(
+                                imageVector = Icons.Outlined.Check,
+                                contentDescription = "当前状态",
+                                tint = MaterialTheme.colorScheme.tertiary,
+                            )
+                        }
                     }
                 }
             }

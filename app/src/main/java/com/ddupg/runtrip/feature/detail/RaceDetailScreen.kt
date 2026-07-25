@@ -61,6 +61,7 @@ import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
+import com.ddupg.runtrip.ui.components.runTripTextButtonColors
 import com.ddupg.runtrip.ui.theme.RunTripTheme
 import java.time.LocalDate
 
@@ -213,6 +214,7 @@ fun RaceDetailScreen(
                 TextButton(
                     onClick = { showDeleteConfirmation = false },
                     enabled = !uiState.isDeleting,
+                    colors = runTripTextButtonColors(),
                 ) {
                     Text("取消")
                 }
