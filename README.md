@@ -1,36 +1,19 @@
 # RunTrip
 
-RunTrip 是一个个人使用的 Android 马拉松行程记录应用，用来替代手机记事本，集中管理比赛日期、城市、项目、参赛状态、赛事等级、路程距离和酒店信息。
+RunTrip 是一个个人使用的 Android 马拉松行程记录应用，用来集中管理比赛计划、参赛状态、赛事等级和酒店信息。应用不需要账号，数据仅保存在本机。
 
-## 首版范围
+## 功能
 
 - 按月份浏览即将到来和历史比赛
 - 按参赛状态筛选，并在列表中快速更新状态
-- 比赛列表上滑时收起副标题、分段切换和筛选，仅保留 RunTrip 标题
 - 新增、编辑、查看和删除比赛记录
-- 按具体赛事记录中国田协等级与 World Athletics Label
+- 记录中国田协等级与 World Athletics Label
 - 记录酒店预订状态、酒店、平台、总价和备注
-- 所有数据仅保存在手机本地
 - 支持系统浅色与深色模式
 
-首版不包含账号、云同步、通知、交通安排、数据备份恢复和 Play Store 发布。
+## 开始开发
 
-## 视觉与无障碍
-
-- 荧光黄绿色只用于具有深色内容的品牌填充组件，以及勾选等小面积强调；不作为浅色背景上的细线或文字。
-- 输入焦点、日期选择和其他选中控件使用同一高对比度色系，并通过勾选等非颜色提示表达状态。
-- 浅色模式使用深橄榄色承担交互状态；深色模式使用高对比度黄绿色和夜色表面，二者均保持清晰的内容对比。
-
-## 开发环境
-
-- JDK 17 或更高版本
-- Android SDK 36
-- Android SDK Build-Tools 36.0.0
-- Android 16 设备或模拟器
-
-项目固定 `minSdk = 36`、`targetSdk = 36`、`compileSdk = 36`。
-
-## 本地构建
+需要 JDK 17、Android SDK 36 和 Android SDK Build-Tools 36.0.0。
 
 ```bash
 ./gradlew test lint assembleDebug
@@ -38,60 +21,9 @@ RunTrip 是一个个人使用的 Android 马拉松行程记录应用，用来替
 
 Debug APK 生成在 `app/build/outputs/apk/debug/`。
 
-推送到 `main` 后，GitHub Actions 会运行单元测试、Android Lint，并构建一个保留 14 天的 Debug APK。
+## 文档
 
-## GitHub 发版
-
-以 `v` 开头的 Git tag 会触发发版流水线。流水线会重新运行测试和 Lint，构建并校验签名 APK，然后创建 GitHub Release，上传：
-
-- `RunTrip-vX.Y.Z.apk`
-- `RunTrip-vX.Y.Z.apk.sha256`
-
-版本号由 `gradle.properties` 中的 `runTripVersionName` 和 `runTripVersionCode` 管理。每次发版先通过独立 PR 更新这两个值；PR 合并后，再在该合并 commit 上创建与 `runTripVersionName` 一致的 `vX.Y.Z` tag。发版流水线会校验二者一致，避免从错误的 commit 发布。
-
-第一次发版前，在 GitHub 仓库的 `Settings → Secrets and variables → Actions` 中配置：
-
-- `RUNTRIP_KEYSTORE_BASE64`：release keystore 文件的 Base64 内容
-- `RUNTRIP_KEYSTORE_PASSWORD`：keystore 密码
-- `RUNTRIP_KEY_ALIAS`：签名 key alias
-- `RUNTRIP_KEY_PASSWORD`：签名 key 密码
-
-可以用下面的命令生成 keystore：
-
-```bash
-keytool -genkeypair -v \
-  -keystore runtrip-release.jks \
-  -alias runtrip \
-  -keyalg RSA \
-  -keysize 4096 \
-  -validity 10000
-```
-
-在 macOS 上复制 Base64 内容：
-
-```bash
-base64 -i runtrip-release.jks | pbcopy
-```
-
-妥善保存 keystore 和密码；后续版本必须使用同一签名，Android 才能覆盖安装升级。
-
-发布示例：
-
-```bash
-git tag -a v0.1.0 -m "RunTrip v0.1.0"
-git push origin v0.1.0
-```
-
-流水线完成后，从仓库的 Releases 页面下载 APK，并可用随附的 SHA-256 文件校验完整性。
-
-## 技术栈
-
-- Kotlin
-- Jetpack Compose + Material 3
-- Room
-- ViewModel + Repository
-- 单 Activity 导航
-
-项目不申请网络权限。
-
-数据库中的参赛状态、比赛项目、赛事等级和酒店状态使用稳定的英文 code；中文仅用于界面展示，便于后续迁移和调整文案。赛事等级为选填项：中国田协等级支持 `A1`、`A2`、`B`、`C`，World Athletics Label 支持 `PLATINUM`、`GOLD`、`ELITE`、`LABEL`。
+- [文档导航](docs/README.md)
+- [产品范围与体验规范](docs/product.md)
+- [开发指南](docs/development.md)
+- [发版指南](docs/release.md)
