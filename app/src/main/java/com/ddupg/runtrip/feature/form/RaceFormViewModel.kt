@@ -3,15 +3,7 @@ package com.ddupg.runtrip.feature.form
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.ddupg.runtrip.data.model.CaaRaceLevel
-import com.ddupg.runtrip.data.model.HotelBookingStatus
-import com.ddupg.runtrip.data.model.Race
-import com.ddupg.runtrip.data.model.RaceCategory
-import com.ddupg.runtrip.data.model.RaceStatus
-import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
-import java.math.BigDecimal
-import java.time.LocalDate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -44,66 +36,18 @@ class RaceFormViewModel(
                         loadError = "没有找到这条比赛记录",
                     )
                 } else {
-                    race.toFormState()
+                    RaceFormUiState(draft = race.toDraft())
                 }
             }
         }
     }
 
-    fun updateName(value: String) = updateState {
-        copy(name = value, errors = errors.copy(name = null), saveError = null)
+    fun updateDraft(draft: RaceDraft) {
+        _uiState.update { state -> state.withDraft(draft) }
     }
-
-    fun updateCity(value: String) = updateState {
-        copy(city = value, errors = errors.copy(city = null), saveError = null)
-    }
-
-    fun updateRaceDate(value: LocalDate) = updateState { copy(raceDate = value, saveError = null) }
-
-    fun updateCategory(value: RaceCategory) = updateState { copy(category = value, saveError = null) }
-
-    fun updateStatus(value: RaceStatus) = updateState { copy(status = value, saveError = null) }
-
-    fun updateCaaRaceLevel(value: CaaRaceLevel?) = updateState {
-        copy(caaRaceLevel = value, saveError = null)
-    }
-
-    fun updateWorldAthleticsLabel(value: WorldAthleticsLabel?) = updateState {
-        copy(worldAthleticsLabel = value, saveError = null)
-    }
-
-    fun updateTravelDistance(value: String) = updateState {
-        copy(
-            travelDistance = value,
-            errors = errors.copy(travelDistance = null),
-            saveError = null,
-        )
-    }
-
-    fun updateHotelBookingStatus(value: HotelBookingStatus) = updateState {
-        copy(hotelBookingStatus = value, saveError = null)
-    }
-
-    fun updateHotelName(value: String) = updateState { copy(hotelName = value, saveError = null) }
-
-    fun updateBookingPlatform(value: String) = updateState {
-        copy(bookingPlatform = value, saveError = null)
-    }
-
-    fun updateHotelPrice(value: String) = updateState {
-        copy(
-            hotelPrice = value,
-            errors = errors.copy(hotelPrice = null),
-            saveError = null,
-        )
-    }
-
-    fun updateHotelNotes(value: String) = updateState { copy(hotelNotes = value, saveError = null) }
-
-    fun updateRaceNotes(value: String) = updateState { copy(raceNotes = value, saveError = null) }
 
     fun save() {
-        val validation = validateRaceForm(_uiState.value)
+        val validation = validateRaceForm(_uiState.value.draft)
         if (validation.input == null) {
             _uiState.update { it.copy(errors = validation.errors) }
             return
@@ -129,10 +73,6 @@ class RaceFormViewModel(
         }
     }
 
-    private inline fun updateState(transform: RaceFormUiState.() -> RaceFormUiState) {
-        _uiState.update { state -> state.transform() }
-    }
-
     class Factory(
         private val repository: RaceRepository,
         private val raceId: String?,
@@ -144,25 +84,3 @@ class RaceFormViewModel(
         }
     }
 }
-
-private fun Race.toFormState(): RaceFormUiState = RaceFormUiState(
-    name = name,
-    city = city,
-    raceDate = raceDate,
-    category = category,
-    status = status,
-    caaRaceLevel = caaRaceLevel,
-    worldAthleticsLabel = worldAthleticsLabel,
-    travelDistance = travelDistanceKm?.toPlainString().orEmpty(),
-    hotelBookingStatus = hotelBookingStatus,
-    hotelName = hotelName.orEmpty(),
-    bookingPlatform = bookingPlatform.orEmpty(),
-    hotelPrice = hotelTotalPriceCents?.let {
-        BigDecimal.valueOf(it, 2).stripTrailingZeros().toPlainString()
-    }.orEmpty(),
-    hotelNotes = hotelNotes.orEmpty(),
-    raceNotes = raceNotes.orEmpty(),
-)
-
-private fun Double.toPlainString(): String =
-    BigDecimal.valueOf(this).stripTrailingZeros().toPlainString()
