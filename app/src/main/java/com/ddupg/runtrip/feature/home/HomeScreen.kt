@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Hotel
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -40,10 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -82,11 +80,6 @@ fun HomeRoute(
     val factory = remember(repository) { HomeViewModel.Factory(repository) }
     val viewModel: HomeViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var statusRaceId by rememberSaveable { mutableStateOf<String?>(null) }
-    val statusRace = uiState.monthGroups
-        .asSequence()
-        .flatMap { it.races.asSequence() }
-        .firstOrNull { it.id == statusRaceId }
 
     HomeScreen(
         uiState = uiState,
@@ -94,17 +87,16 @@ fun HomeRoute(
         onSelectStatus = viewModel::selectStatus,
         onAddRace = onAddRace,
         onOpenRace = onOpenRace,
-        onQuickStatus = { statusRaceId = it },
+        onQuickStatus = viewModel::openQuickStatus,
     )
 
-    if (statusRace != null) {
+    val quickStatusRace = uiState.quickStatusRace
+    if (quickStatusRace != null) {
         QuickStatusSheet(
-            race = statusRace,
-            onDismiss = { statusRaceId = null },
-            onSelectStatus = { status ->
-                statusRaceId = null
-                viewModel.updateStatus(statusRace.id, status)
-            },
+            race = quickStatusRace,
+            update = uiState.quickStatusUpdate,
+            onDismiss = viewModel::dismissQuickStatus,
+            onSelectStatus = viewModel::updateQuickStatus,
         )
     }
 }
@@ -529,9 +521,11 @@ private fun HomeEmptyState(
 @Composable
 private fun QuickStatusSheet(
     race: Race,
+    update: QuickStatusUpdate,
     onDismiss: () -> Unit,
     onSelectStatus: (RaceStatus) -> Unit,
 ) {
+    val isSaving = update is QuickStatusUpdate.Saving
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -550,11 +544,20 @@ private fun QuickStatusSheet(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (update is QuickStatusUpdate.Failed) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = update.message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
             RaceStatus.entries.forEach { status ->
                 val selected = status == race.status
                 Surface(
                     onClick = { onSelectStatus(status) },
+                    enabled = !isSaving,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 2.dp),
@@ -580,12 +583,22 @@ private fun QuickStatusSheet(
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                         )
-                        if (selected) {
-                            Icon(
-                                imageVector = Icons.Outlined.Check,
-                                contentDescription = "当前状态",
-                                tint = MaterialTheme.colorScheme.tertiary,
-                            )
+                        when {
+                            update is QuickStatusUpdate.Saving &&
+                                update.targetStatus == status -> {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            }
+
+                            selected -> {
+                                Icon(
+                                    imageVector = Icons.Outlined.Check,
+                                    contentDescription = "当前状态",
+                                    tint = MaterialTheme.colorScheme.tertiary,
+                                )
+                            }
                         }
                     }
                 }
