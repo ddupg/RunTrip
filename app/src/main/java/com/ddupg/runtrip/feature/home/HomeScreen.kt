@@ -67,8 +67,9 @@ import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
 import com.ddupg.runtrip.ui.components.RunTripFilterChip
+import com.ddupg.runtrip.ui.presentation.RaceLabelDensity
+import com.ddupg.runtrip.ui.presentation.RacePresentation
 import com.ddupg.runtrip.ui.theme.RunTripTheme
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -273,7 +274,7 @@ private fun StatusFilters(
             RunTripFilterChip(
                 selected = selectedStatus == status,
                 onClick = { onSelectStatus(status) },
-                label = status.displayName,
+                label = RacePresentation.status(status).text,
             )
         }
     }
@@ -379,7 +380,7 @@ private fun RaceTimelineRow(
                 fontWeight = FontWeight.Black,
             )
             Text(
-                text = race.raceDate.dayOfWeek.chineseShortName(),
+                text = RacePresentation.weekday(race.raceDate.dayOfWeek).text,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -420,12 +421,12 @@ private fun RaceTimelineRow(
                 race.travelDistanceKm?.let { distance ->
                     CompactMetadata(
                         icon = { Icon(Icons.Outlined.Route, contentDescription = null) },
-                        text = distance.formatDistance(),
+                        text = RacePresentation.distance(distance).text,
                     )
                 }
                 CompactMetadata(
                     icon = { Icon(Icons.Outlined.Hotel, contentDescription = null) },
-                    text = race.hotelBookingStatus.displayName,
+                    text = RacePresentation.hotelBookingStatus(race.hotelBookingStatus).text,
                 )
             }
         }
@@ -444,7 +445,7 @@ private fun StatusBadge(
         contentColor = MaterialTheme.colorScheme.onPrimary,
     ) {
         Text(
-            text = status.displayName,
+            text = RacePresentation.status(status).text,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelLarge,
         )
@@ -574,7 +575,7 @@ private fun QuickStatusSheet(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = status.displayName,
+                            text = RacePresentation.status(status).text,
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
@@ -593,41 +594,26 @@ private fun QuickStatusSheet(
     }
 }
 
-private fun RaceCategory.compactDisplayName(): String = when (this) {
-    RaceCategory.MARATHON -> "全马"
-    RaceCategory.HALF_MARATHON -> "半马"
-    RaceCategory.TEN_K -> "10 公里"
-    RaceCategory.OTHER -> "其他"
-}
-
 internal fun formatRaceTimelineSummary(race: Race): AnnotatedString = buildAnnotatedString {
     append(race.city)
     append(" · ")
-    append(race.category.compactDisplayName())
+    append(RacePresentation.category(race.category, RaceLabelDensity.COMPACT).text)
     race.caaRaceLevel?.let { level ->
         append(" · ")
         withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
-            append(level.displayName)
+            append(RacePresentation.caaRaceLevel(level).text)
         }
     }
     race.worldAthleticsLabel?.let { label ->
         append(" · ")
-        append(label.displayName)
+        append(
+            RacePresentation.worldAthleticsLabel(
+                label,
+                RaceLabelDensity.COMPACT,
+            ).text,
+        )
     }
 }
-
-private fun DayOfWeek.chineseShortName(): String = when (this) {
-    DayOfWeek.MONDAY -> "周一"
-    DayOfWeek.TUESDAY -> "周二"
-    DayOfWeek.WEDNESDAY -> "周三"
-    DayOfWeek.THURSDAY -> "周四"
-    DayOfWeek.FRIDAY -> "周五"
-    DayOfWeek.SATURDAY -> "周六"
-    DayOfWeek.SUNDAY -> "周日"
-}
-
-private fun Double.formatDistance(): String =
-    if (this % 1.0 == 0.0) "${toLong()} km" else "$this km"
 
 @Preview(showBackground = true)
 @Composable

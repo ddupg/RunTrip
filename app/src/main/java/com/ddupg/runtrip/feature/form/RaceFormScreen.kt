@@ -61,6 +61,9 @@ import com.ddupg.runtrip.ui.components.RunTripFilterChip
 import com.ddupg.runtrip.ui.components.runTripConfirmButtonColors
 import com.ddupg.runtrip.ui.components.runTripDatePickerColors
 import com.ddupg.runtrip.ui.components.runTripTextButtonColors
+import com.ddupg.runtrip.ui.presentation.RaceDateStyle
+import com.ddupg.runtrip.ui.presentation.RaceLabelDensity
+import com.ddupg.runtrip.ui.presentation.RacePresentation
 import com.ddupg.runtrip.ui.theme.RunTripTheme
 import java.time.Instant
 import java.time.LocalDate
@@ -261,7 +264,10 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
-                    value = draft.raceDate.toChineseDate(),
+                    value = RacePresentation.date(
+                        draft.raceDate,
+                        RaceDateStyle.DATE_ONLY,
+                    ).text,
                     onValueChange = {},
                     modifier = Modifier
                         .fillMaxWidth()
@@ -282,7 +288,9 @@ private fun RaceFormContent(
                 values = RaceCategory.entries,
                 selected = draft.category,
                 key = RaceCategory::code,
-                displayName = RaceCategory::displayName,
+                displayName = {
+                    RacePresentation.category(it, RaceLabelDensity.FULL).text
+                },
                 onSelected = { value ->
                     onDraftChange(draft.copy(category = value))
                 },
@@ -294,7 +302,7 @@ private fun RaceFormContent(
                 values = RaceStatus.entries,
                 selected = draft.status,
                 key = RaceStatus::code,
-                displayName = RaceStatus::displayName,
+                displayName = { RacePresentation.status(it).text },
                 onSelected = { value ->
                     onDraftChange(draft.copy(status = value))
                 },
@@ -309,7 +317,7 @@ private fun RaceFormContent(
                 values = CaaRaceLevel.entries,
                 selected = draft.caaRaceLevel,
                 key = CaaRaceLevel::code,
-                displayName = CaaRaceLevel::displayName,
+                displayName = { RacePresentation.caaRaceLevel(it).text },
                 onSelected = { value ->
                     onDraftChange(draft.copy(caaRaceLevel = value))
                 },
@@ -321,7 +329,12 @@ private fun RaceFormContent(
                 values = WorldAthleticsLabel.entries,
                 selected = draft.worldAthleticsLabel,
                 key = WorldAthleticsLabel::code,
-                displayName = WorldAthleticsLabel::bilingualDisplayName,
+                displayName = {
+                    RacePresentation.worldAthleticsLabel(
+                        it,
+                        RaceLabelDensity.FULL,
+                    ).text
+                },
                 onSelected = { value ->
                     onDraftChange(draft.copy(worldAthleticsLabel = value))
                 },
@@ -359,7 +372,7 @@ private fun RaceFormContent(
                 values = HotelBookingStatus.entries,
                 selected = draft.hotelBookingStatus,
                 key = HotelBookingStatus::code,
-                displayName = HotelBookingStatus::displayName,
+                displayName = { RacePresentation.hotelBookingStatus(it).text },
                 onSelected = { value ->
                     onDraftChange(draft.copy(hotelBookingStatus = value))
                 },
@@ -531,7 +544,7 @@ private fun <T> OptionalChoiceChips(
                 RunTripFilterChip(
                     selected = selected == null,
                     onClick = { onSelected(null) },
-                    label = "未填写",
+                    label = RacePresentation.missing().text,
                 )
             }
             items(values, key = key) { value ->
@@ -547,10 +560,6 @@ private fun <T> OptionalChoiceChips(
 
 private fun LocalDate.toUtcMillis(): Long =
     atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-
-private fun LocalDate.toChineseDate(): String =
-    "$year 年 ${monthValue.toString().padStart(2, '0')} 月 " +
-        "${dayOfMonth.toString().padStart(2, '0')} 日"
 
 @Preview(showBackground = true)
 @Composable

@@ -43,9 +43,12 @@ app/src/main/java/com/ddupg/runtrip/
 
 `RaceRepository` 是比赛持久化生命周期的公开边界。`OfflineRaceRepository` 与 Room adapter 集中负责输入规范化、实体映射、创建/更新时间和 `recordVersion` 推进；上层功能不直接依赖 DAO。
 
+`RacePresentation` 集中负责比赛日期、星期、距离、金额、缺省值和各类 code 的中文展示语义。Home、Detail、Form adapter 只决定布局和 full/compact 展示密度，不在本地重写文案或格式规则。
+
 ## 数据与变更约定
 
 - 持久化状态和类型使用稳定的英文 code，中文仅用于 UI 展示。
+- 数据 model 只保留稳定 code；中文标签和格式规则统一放在 `RacePresentation`。
 - Room 数据结构变化需要提供迁移，并提交 `app/schemas/` 中的 schema。
 - 持久化生命周期测试只通过 `RaceRepository` 操作真实的内存 Room 数据库，避免 Fake DAO 复制 SQL 行为。
 - 行为变化需要同步测试和相关文档。
