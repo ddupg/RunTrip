@@ -5,35 +5,39 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.repository.RaceRepository
-import java.time.LocalDate
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
     private val repository: RaceRepository,
-    private val today: () -> LocalDate = LocalDate::now,
+    daySource: DaySource = SystemDaySource(),
 ) : ViewModel() {
-    private val selectedSection = MutableStateFlow(RaceSection.UPCOMING)
-    private val selectedStatus = MutableStateFlow<RaceStatus?>(null)
+    private val controls = MutableStateFlow(HomeControls())
 
     val uiState: StateFlow<HomeUiState> = combine(
         repository.observeRaces(),
-        selectedSection,
-        selectedStatus,
-    ) { races, section, status ->
+        daySource.observeToday(),
+        controls,
+    ) { races, today, currentControls ->
         HomeUiState(
-            section = section,
-            selectedStatus = status,
+            section = currentControls.section,
+            selectedStatus = currentControls.selectedStatus,
             monthGroups = buildRaceMonthGroups(
                 races = races,
-                section = section,
-                selectedStatus = status,
-                today = today(),
+                section = currentControls.section,
+                selectedStatus = currentControls.selectedStatus,
+                today = today,
             ),
+            quickStatusRace = currentControls.quickStatusRaceId?.let { selectedId ->
+                races.firstOrNull { it.id == selectedId }
+            },
+            quickStatusUpdate = currentControls.quickStatusUpdate,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -42,16 +46,84 @@ class HomeViewModel(
     )
 
     fun selectSection(section: RaceSection) {
-        selectedSection.value = section
+        controls.update { it.copy(section = section) }
     }
 
     fun selectStatus(status: RaceStatus?) {
-        selectedStatus.value = status
+        controls.update { it.copy(selectedStatus = status) }
     }
 
-    fun updateStatus(raceId: String, status: RaceStatus) {
+    fun openQuickStatus(raceId: String) {
+        controls.update { current ->
+            if (current.quickStatusUpdate is QuickStatusUpdate.Saving) {
+                current
+            } else {
+                current.copy(
+                    quickStatusRaceId = raceId,
+                    quickStatusUpdate = QuickStatusUpdate.Idle,
+                )
+            }
+        }
+    }
+
+    fun dismissQuickStatus() {
+        controls.update { current ->
+            if (current.quickStatusUpdate is QuickStatusUpdate.Saving) {
+                current
+            } else {
+                current.copy(
+                    quickStatusRaceId = null,
+                    quickStatusUpdate = QuickStatusUpdate.Idle,
+                )
+            }
+        }
+    }
+
+    fun updateQuickStatus(status: RaceStatus) {
+        val current = controls.value
+        val raceId = current.quickStatusRaceId ?: return
+        if (current.quickStatusUpdate is QuickStatusUpdate.Saving) return
+
+        controls.update {
+            it.copy(quickStatusUpdate = QuickStatusUpdate.Saving(status))
+        }
         viewModelScope.launch {
-            repository.updateStatus(raceId, status)
+            val updateResult = try {
+                if (repository.updateStatus(raceId, status)) {
+                    QuickStatusResult.Success
+                } else {
+                    QuickStatusResult.RaceMissing
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: RuntimeException) {
+                QuickStatusResult.Failed
+            }
+
+            controls.update { latest ->
+                if (latest.quickStatusRaceId != raceId) {
+                    latest
+                } else {
+                    when (updateResult) {
+                        QuickStatusResult.Success -> latest.copy(
+                            quickStatusRaceId = null,
+                            quickStatusUpdate = QuickStatusUpdate.Idle,
+                        )
+
+                        QuickStatusResult.RaceMissing -> latest.copy(
+                            quickStatusUpdate = QuickStatusUpdate.Failed(
+                                "没有找到这条比赛记录",
+                            ),
+                        )
+
+                        QuickStatusResult.Failed -> latest.copy(
+                            quickStatusUpdate = QuickStatusUpdate.Failed(
+                                "更新参赛状态失败，请重试",
+                            ),
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -64,4 +136,17 @@ class HomeViewModel(
             return HomeViewModel(repository) as T
         }
     }
+}
+
+private data class HomeControls(
+    val section: RaceSection = RaceSection.UPCOMING,
+    val selectedStatus: RaceStatus? = null,
+    val quickStatusRaceId: String? = null,
+    val quickStatusUpdate: QuickStatusUpdate = QuickStatusUpdate.Idle,
+)
+
+private enum class QuickStatusResult {
+    Success,
+    RaceMissing,
+    Failed,
 }

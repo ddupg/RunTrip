@@ -19,7 +19,17 @@ data class HomeUiState(
     val section: RaceSection = RaceSection.UPCOMING,
     val selectedStatus: RaceStatus? = null,
     val monthGroups: List<RaceMonthGroup> = emptyList(),
+    val quickStatusRace: Race? = null,
+    val quickStatusUpdate: QuickStatusUpdate = QuickStatusUpdate.Idle,
 )
+
+sealed interface QuickStatusUpdate {
+    data object Idle : QuickStatusUpdate
+
+    data class Saving(val targetStatus: RaceStatus) : QuickStatusUpdate
+
+    data class Failed(val message: String) : QuickStatusUpdate
+}
 
 fun buildRaceMonthGroups(
     races: List<Race>,

@@ -45,6 +45,8 @@ app/src/main/java/com/ddupg/runtrip/
 
 `RacePresentation` 集中负责比赛日期、星期、距离、金额、缺省值和各类 code 的中文展示语义。Home、Detail、Form adapter 只决定布局和 full/compact 展示密度，不在本地重写文案或格式规则。
 
+首页浏览 module 集中负责日期驱动的分组投影、分段与状态筛选、快捷状态选择，以及 mutation 的保存中/失败结果。`RaceRepository` 和 `DaySource` 是可替换 adapter；Compose 只渲染 `HomeUiState` 并发送用户动作。
+
 ## 数据与变更约定
 
 - 持久化状态和类型使用稳定的英文 code，中文仅用于 UI 展示。
