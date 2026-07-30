@@ -2,6 +2,7 @@ package com.ddupg.runtrip.feature.form
 
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
+import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceInput
 import com.ddupg.runtrip.data.model.RaceStatus
@@ -19,7 +20,7 @@ data class RaceFormErrors(
         get() = listOf(name, city, travelDistance, hotelPrice).any { it != null }
 }
 
-data class RaceFormUiState(
+data class RaceDraft(
     val name: String = "",
     val city: String = "",
     val raceDate: LocalDate = LocalDate.now(),
@@ -34,6 +35,10 @@ data class RaceFormUiState(
     val hotelPrice: String = "",
     val hotelNotes: String = "",
     val raceNotes: String = "",
+)
+
+data class RaceFormUiState(
+    val draft: RaceDraft = RaceDraft(),
     val errors: RaceFormErrors = RaceFormErrors(),
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
@@ -41,16 +46,16 @@ data class RaceFormUiState(
     val saveError: String? = null,
 )
 
-data class RaceFormValidationResult(
+internal data class RaceFormValidationResult(
     val input: RaceInput?,
     val errors: RaceFormErrors,
 )
 
-fun validateRaceForm(state: RaceFormUiState): RaceFormValidationResult {
-    val nameError = if (state.name.isBlank()) "请输入比赛名称" else null
-    val cityError = if (state.city.isBlank()) "请输入城市" else null
+internal fun validateRaceForm(draft: RaceDraft): RaceFormValidationResult {
+    val nameError = if (draft.name.isBlank()) "请输入比赛名称" else null
+    val cityError = if (draft.city.isBlank()) "请输入城市" else null
 
-    val distanceText = state.travelDistance.trim()
+    val distanceText = draft.travelDistance.trim()
     val distance = distanceText.takeIf { it.isNotEmpty() }?.toDoubleOrNull()
     val distanceError = when {
         distanceText.isEmpty() -> null
@@ -59,7 +64,7 @@ fun validateRaceForm(state: RaceFormUiState): RaceFormValidationResult {
         else -> null
     }
 
-    val priceText = state.hotelPrice.trim()
+    val priceText = draft.hotelPrice.trim()
     val priceCents = priceText.takeIf { it.isNotEmpty() }?.toPriceCentsOrNull()
     val priceError = when {
         priceText.isEmpty() -> null
@@ -80,24 +85,61 @@ fun validateRaceForm(state: RaceFormUiState): RaceFormValidationResult {
 
     return RaceFormValidationResult(
         input = RaceInput(
-            name = state.name,
-            city = state.city,
-            raceDate = state.raceDate,
-            category = state.category,
-            status = state.status,
-            caaRaceLevel = state.caaRaceLevel,
-            worldAthleticsLabel = state.worldAthleticsLabel,
+            name = draft.name,
+            city = draft.city,
+            raceDate = draft.raceDate,
+            category = draft.category,
+            status = draft.status,
+            caaRaceLevel = draft.caaRaceLevel,
+            worldAthleticsLabel = draft.worldAthleticsLabel,
             travelDistanceKm = distance,
-            hotelBookingStatus = state.hotelBookingStatus,
-            hotelName = state.hotelName,
-            bookingPlatform = state.bookingPlatform,
+            hotelBookingStatus = draft.hotelBookingStatus,
+            hotelName = draft.hotelName,
+            bookingPlatform = draft.bookingPlatform,
             hotelTotalPriceCents = priceCents,
-            hotelNotes = state.hotelNotes,
-            raceNotes = state.raceNotes,
+            hotelNotes = draft.hotelNotes,
+            raceNotes = draft.raceNotes,
         ),
         errors = errors,
     )
 }
+
+internal fun RaceFormUiState.withDraft(updatedDraft: RaceDraft): RaceFormUiState = copy(
+    draft = updatedDraft,
+    errors = errors.clearedForChanges(draft, updatedDraft),
+    saveError = null,
+)
+
+internal fun Race.toDraft(): RaceDraft = RaceDraft(
+    name = name,
+    city = city,
+    raceDate = raceDate,
+    category = category,
+    status = status,
+    caaRaceLevel = caaRaceLevel,
+    worldAthleticsLabel = worldAthleticsLabel,
+    travelDistance = travelDistanceKm?.toPlainString().orEmpty(),
+    hotelBookingStatus = hotelBookingStatus,
+    hotelName = hotelName.orEmpty(),
+    bookingPlatform = bookingPlatform.orEmpty(),
+    hotelPrice = hotelTotalPriceCents?.let {
+        BigDecimal.valueOf(it, 2).stripTrailingZeros().toPlainString()
+    }.orEmpty(),
+    hotelNotes = hotelNotes.orEmpty(),
+    raceNotes = raceNotes.orEmpty(),
+)
+
+private fun RaceFormErrors.clearedForChanges(
+    previousDraft: RaceDraft,
+    updatedDraft: RaceDraft,
+): RaceFormErrors = copy(
+    name = name.takeIf { previousDraft.name == updatedDraft.name },
+    city = city.takeIf { previousDraft.city == updatedDraft.city },
+    travelDistance = travelDistance.takeIf {
+        previousDraft.travelDistance == updatedDraft.travelDistance
+    },
+    hotelPrice = hotelPrice.takeIf { previousDraft.hotelPrice == updatedDraft.hotelPrice },
+)
 
 private fun String.toPriceCentsOrNull(): Long? = try {
     BigDecimal(this)
@@ -108,3 +150,6 @@ private fun String.toPriceCentsOrNull(): Long? = try {
 } catch (_: NumberFormatException) {
     null
 }
+
+private fun Double.toPlainString(): String =
+    BigDecimal.valueOf(this).stripTrailingZeros().toPlainString()

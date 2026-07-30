@@ -85,20 +85,7 @@ fun RaceFormRoute(
         uiState = uiState,
         isEditing = raceId != null,
         onBack = onBack,
-        onNameChange = viewModel::updateName,
-        onCityChange = viewModel::updateCity,
-        onRaceDateChange = viewModel::updateRaceDate,
-        onCategoryChange = viewModel::updateCategory,
-        onStatusChange = viewModel::updateStatus,
-        onCaaRaceLevelChange = viewModel::updateCaaRaceLevel,
-        onWorldAthleticsLabelChange = viewModel::updateWorldAthleticsLabel,
-        onTravelDistanceChange = viewModel::updateTravelDistance,
-        onHotelBookingStatusChange = viewModel::updateHotelBookingStatus,
-        onHotelNameChange = viewModel::updateHotelName,
-        onBookingPlatformChange = viewModel::updateBookingPlatform,
-        onHotelPriceChange = viewModel::updateHotelPrice,
-        onHotelNotesChange = viewModel::updateHotelNotes,
-        onRaceNotesChange = viewModel::updateRaceNotes,
+        onDraftChange = viewModel::updateDraft,
         onSave = viewModel::save,
     )
 }
@@ -109,23 +96,11 @@ fun RaceFormScreen(
     uiState: RaceFormUiState,
     isEditing: Boolean,
     onBack: () -> Unit,
-    onNameChange: (String) -> Unit,
-    onCityChange: (String) -> Unit,
-    onRaceDateChange: (LocalDate) -> Unit,
-    onCategoryChange: (RaceCategory) -> Unit,
-    onStatusChange: (RaceStatus) -> Unit,
-    onCaaRaceLevelChange: (CaaRaceLevel?) -> Unit,
-    onWorldAthleticsLabelChange: (WorldAthleticsLabel?) -> Unit,
-    onTravelDistanceChange: (String) -> Unit,
-    onHotelBookingStatusChange: (HotelBookingStatus) -> Unit,
-    onHotelNameChange: (String) -> Unit,
-    onBookingPlatformChange: (String) -> Unit,
-    onHotelPriceChange: (String) -> Unit,
-    onHotelNotesChange: (String) -> Unit,
-    onRaceNotesChange: (String) -> Unit,
+    onDraftChange: (RaceDraft) -> Unit,
     onSave: () -> Unit,
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
+    val draft = uiState.draft
 
     Scaffold(
         topBar = {
@@ -185,20 +160,8 @@ fun RaceFormScreen(
                 RaceFormContent(
                     modifier = Modifier.padding(innerPadding),
                     uiState = uiState,
-                    onNameChange = onNameChange,
-                    onCityChange = onCityChange,
+                    onDraftChange = onDraftChange,
                     onOpenDatePicker = { showDatePicker = true },
-                    onCategoryChange = onCategoryChange,
-                    onStatusChange = onStatusChange,
-                    onCaaRaceLevelChange = onCaaRaceLevelChange,
-                    onWorldAthleticsLabelChange = onWorldAthleticsLabelChange,
-                    onTravelDistanceChange = onTravelDistanceChange,
-                    onHotelBookingStatusChange = onHotelBookingStatusChange,
-                    onHotelNameChange = onHotelNameChange,
-                    onBookingPlatformChange = onBookingPlatformChange,
-                    onHotelPriceChange = onHotelPriceChange,
-                    onHotelNotesChange = onHotelNotesChange,
-                    onRaceNotesChange = onRaceNotesChange,
                 )
             }
         }
@@ -206,7 +169,7 @@ fun RaceFormScreen(
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = uiState.raceDate.toUtcMillis(),
+            initialSelectedDateMillis = draft.raceDate.toUtcMillis(),
         )
         val datePickerColors = runTripDatePickerColors()
         DatePickerDialog(
@@ -216,10 +179,12 @@ fun RaceFormScreen(
                 Button(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { selectedMillis ->
-                            onRaceDateChange(
-                                Instant.ofEpochMilli(selectedMillis)
-                                    .atZone(ZoneOffset.UTC)
-                                    .toLocalDate(),
+                            onDraftChange(
+                                draft.copy(
+                                    raceDate = Instant.ofEpochMilli(selectedMillis)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toLocalDate(),
+                                ),
                             )
                         }
                         showDatePicker = false
@@ -249,22 +214,12 @@ fun RaceFormScreen(
 @Composable
 private fun RaceFormContent(
     uiState: RaceFormUiState,
-    onNameChange: (String) -> Unit,
-    onCityChange: (String) -> Unit,
+    onDraftChange: (RaceDraft) -> Unit,
     onOpenDatePicker: () -> Unit,
-    onCategoryChange: (RaceCategory) -> Unit,
-    onStatusChange: (RaceStatus) -> Unit,
-    onCaaRaceLevelChange: (CaaRaceLevel?) -> Unit,
-    onWorldAthleticsLabelChange: (WorldAthleticsLabel?) -> Unit,
-    onTravelDistanceChange: (String) -> Unit,
-    onHotelBookingStatusChange: (HotelBookingStatus) -> Unit,
-    onHotelNameChange: (String) -> Unit,
-    onBookingPlatformChange: (String) -> Unit,
-    onHotelPriceChange: (String) -> Unit,
-    onHotelNotesChange: (String) -> Unit,
-    onRaceNotesChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val draft = uiState.draft
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 40.dp),
@@ -274,8 +229,10 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
-                    value = uiState.name,
-                    onValueChange = onNameChange,
+                    value = draft.name,
+                    onValueChange = { value ->
+                        onDraftChange(draft.copy(name = value))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("比赛名称") },
                     singleLine = true,
@@ -288,8 +245,10 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
-                    value = uiState.city,
-                    onValueChange = onCityChange,
+                    value = draft.city,
+                    onValueChange = { value ->
+                        onDraftChange(draft.copy(city = value))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("城市") },
                     singleLine = true,
@@ -302,7 +261,7 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
-                    value = uiState.raceDate.toChineseDate(),
+                    value = draft.raceDate.toChineseDate(),
                     onValueChange = {},
                     modifier = Modifier
                         .fillMaxWidth()
@@ -321,20 +280,24 @@ private fun RaceFormContent(
             ChoiceChips(
                 label = "比赛项目",
                 values = RaceCategory.entries,
-                selected = uiState.category,
+                selected = draft.category,
                 key = RaceCategory::code,
                 displayName = RaceCategory::displayName,
-                onSelected = onCategoryChange,
+                onSelected = { value ->
+                    onDraftChange(draft.copy(category = value))
+                },
             )
         }
         item {
             ChoiceChips(
                 label = "参赛状态",
                 values = RaceStatus.entries,
-                selected = uiState.status,
+                selected = draft.status,
                 key = RaceStatus::code,
                 displayName = RaceStatus::displayName,
-                onSelected = onStatusChange,
+                onSelected = { value ->
+                    onDraftChange(draft.copy(status = value))
+                },
             )
         }
 
@@ -344,20 +307,24 @@ private fun RaceFormContent(
             OptionalChoiceChips(
                 label = "中国田协等级",
                 values = CaaRaceLevel.entries,
-                selected = uiState.caaRaceLevel,
+                selected = draft.caaRaceLevel,
                 key = CaaRaceLevel::code,
                 displayName = CaaRaceLevel::displayName,
-                onSelected = onCaaRaceLevelChange,
+                onSelected = { value ->
+                    onDraftChange(draft.copy(caaRaceLevel = value))
+                },
             )
         }
         item {
             OptionalChoiceChips(
                 label = "World Athletics Label",
                 values = WorldAthleticsLabel.entries,
-                selected = uiState.worldAthleticsLabel,
+                selected = draft.worldAthleticsLabel,
                 key = WorldAthleticsLabel::code,
                 displayName = WorldAthleticsLabel::bilingualDisplayName,
-                onSelected = onWorldAthleticsLabelChange,
+                onSelected = { value ->
+                    onDraftChange(draft.copy(worldAthleticsLabel = value))
+                },
             )
         }
 
@@ -366,8 +333,10 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
-                    value = uiState.travelDistance,
-                    onValueChange = onTravelDistanceChange,
+                    value = draft.travelDistance,
+                    onValueChange = { value ->
+                        onDraftChange(draft.copy(travelDistance = value))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("路程距离") },
                     suffix = { Text("km") },
@@ -388,17 +357,21 @@ private fun RaceFormContent(
             ChoiceChips(
                 label = "预订状态",
                 values = HotelBookingStatus.entries,
-                selected = uiState.hotelBookingStatus,
+                selected = draft.hotelBookingStatus,
                 key = HotelBookingStatus::code,
                 displayName = HotelBookingStatus::displayName,
-                onSelected = onHotelBookingStatusChange,
+                onSelected = { value ->
+                    onDraftChange(draft.copy(hotelBookingStatus = value))
+                },
             )
         }
         item {
             RunTripControlTheme {
                 OutlinedTextField(
-                    value = uiState.hotelName,
-                    onValueChange = onHotelNameChange,
+                    value = draft.hotelName,
+                    onValueChange = { value ->
+                        onDraftChange(draft.copy(hotelName = value))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("酒店名称") },
                     singleLine = true,
@@ -409,8 +382,10 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
-                    value = uiState.bookingPlatform,
-                    onValueChange = onBookingPlatformChange,
+                    value = draft.bookingPlatform,
+                    onValueChange = { value ->
+                        onDraftChange(draft.copy(bookingPlatform = value))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("预订平台") },
                     singleLine = true,
@@ -421,8 +396,10 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
-                    value = uiState.hotelPrice,
-                    onValueChange = onHotelPriceChange,
+                    value = draft.hotelPrice,
+                    onValueChange = { value ->
+                        onDraftChange(draft.copy(hotelPrice = value))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("酒店总价") },
                     prefix = { Text("¥") },
@@ -439,8 +416,10 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
-                    value = uiState.hotelNotes,
-                    onValueChange = onHotelNotesChange,
+                    value = draft.hotelNotes,
+                    onValueChange = { value ->
+                        onDraftChange(draft.copy(hotelNotes = value))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("酒店备注") },
                     minLines = 3,
@@ -453,8 +432,10 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
-                    value = uiState.raceNotes,
-                    onValueChange = onRaceNotesChange,
+                    value = draft.raceNotes,
+                    onValueChange = { value ->
+                        onDraftChange(draft.copy(raceNotes = value))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("备注") },
                     minLines = 4,
@@ -579,20 +560,7 @@ private fun RaceFormScreenPreview() {
             uiState = RaceFormUiState(),
             isEditing = false,
             onBack = {},
-            onNameChange = {},
-            onCityChange = {},
-            onRaceDateChange = {},
-            onCategoryChange = {},
-            onStatusChange = {},
-            onCaaRaceLevelChange = {},
-            onWorldAthleticsLabelChange = {},
-            onTravelDistanceChange = {},
-            onHotelBookingStatusChange = {},
-            onHotelNameChange = {},
-            onBookingPlatformChange = {},
-            onHotelPriceChange = {},
-            onHotelNotesChange = {},
-            onRaceNotesChange = {},
+            onDraftChange = {},
             onSave = {},
         )
     }

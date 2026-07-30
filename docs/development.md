@@ -39,6 +39,8 @@ app/src/main/java/com/ddupg/runtrip/
 └── ui/         # 应用入口、公共组件与主题
 ```
 
+比赛表单使用 `RaceDraft` 表示尚未保存的比赛草稿。比赛编辑 module 集中负责草稿转换、校验、加载和保存；Compose 只渲染状态并提交完整的草稿变化。
+
 ## 数据与变更约定
 
 - 持久化状态和类型使用稳定的英文 code，中文仅用于 UI 展示。

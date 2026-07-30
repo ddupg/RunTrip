@@ -14,7 +14,7 @@ import org.junit.Test
 class RaceFormStateTest {
     @Test
     fun requiredFieldsAreValidated() {
-        val result = validateRaceForm(RaceFormUiState(name = " ", city = ""))
+        val result = validateRaceForm(RaceDraft(name = " ", city = ""))
 
         assertNull(result.input)
         assertTrue(result.errors.name != null)
@@ -23,14 +23,14 @@ class RaceFormStateTest {
 
     @Test
     fun hotelPriceIsConvertedToExactCents() {
-        val result = validateRaceForm(validState().copy(hotelPrice = "350.50"))
+        val result = validateRaceForm(validDraft().copy(hotelPrice = "350.50"))
 
         assertEquals(35_050L, result.input?.hotelTotalPriceCents)
     }
 
     @Test
     fun valuesWithMoreThanTwoPriceDecimalsAreRejected() {
-        val result = validateRaceForm(validState().copy(hotelPrice = "350.123"))
+        val result = validateRaceForm(validDraft().copy(hotelPrice = "350.123"))
 
         assertNull(result.input)
         assertTrue(result.errors.hotelPrice != null)
@@ -38,7 +38,7 @@ class RaceFormStateTest {
 
     @Test
     fun negativeDistanceIsRejected() {
-        val result = validateRaceForm(validState().copy(travelDistance = "-1"))
+        val result = validateRaceForm(validDraft().copy(travelDistance = "-1"))
 
         assertNull(result.input)
         assertTrue(result.errors.travelDistance != null)
@@ -47,7 +47,7 @@ class RaceFormStateTest {
     @Test
     fun optionalRaceLevelsAreIncludedInValidatedInput() {
         val result = validateRaceForm(
-            validState().copy(
+            validDraft().copy(
                 caaRaceLevel = CaaRaceLevel.A1,
                 worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
             ),
@@ -59,13 +59,13 @@ class RaceFormStateTest {
 
     @Test
     fun raceLevelsDefaultToNotFilled() {
-        val result = validateRaceForm(validState())
+        val result = validateRaceForm(validDraft())
 
         assertNull(result.input?.caaRaceLevel)
         assertNull(result.input?.worldAthleticsLabel)
     }
 
-    private fun validState(): RaceFormUiState = RaceFormUiState(
+    private fun validDraft(): RaceDraft = RaceDraft(
         name = "横店马拉松",
         city = "金华",
         raceDate = LocalDate.of(2026, 11, 15),
