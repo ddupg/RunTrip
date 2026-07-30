@@ -28,7 +28,7 @@ interface RaceDao {
         WHERE id = :id
         """,
     )
-    suspend fun updateStatus(
+    suspend fun updateStatusAndAdvanceVersion(
         id: String,
         statusCode: String,
         updatedAtEpochMillis: Long,
