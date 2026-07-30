@@ -49,7 +49,7 @@ class OfflineRaceRepository(
     }
 
     override suspend fun updateStatus(id: String, status: RaceStatus): Boolean =
-        raceDao.updateStatus(
+        raceDao.updateStatusAndAdvanceVersion(
             id = id,
             statusCode = status.code,
             updatedAtEpochMillis = currentTimeMillis(),
