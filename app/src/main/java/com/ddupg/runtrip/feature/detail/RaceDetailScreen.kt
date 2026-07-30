@@ -62,6 +62,10 @@ import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
 import com.ddupg.runtrip.ui.components.runTripTextButtonColors
+import com.ddupg.runtrip.ui.presentation.RaceDateStyle
+import com.ddupg.runtrip.ui.presentation.RaceDisplayText
+import com.ddupg.runtrip.ui.presentation.RaceLabelDensity
+import com.ddupg.runtrip.ui.presentation.RacePresentation
 import com.ddupg.runtrip.ui.theme.RunTripTheme
 import java.time.LocalDate
 
@@ -241,13 +245,16 @@ private fun RaceDetailContent(
                     race.caaRaceLevel?.let { level ->
                         LevelDetailRow(
                             label = "中国田协",
-                            value = level.displayName,
+                            value = RacePresentation.caaRaceLevel(level).text,
                         )
                     }
                     race.worldAthleticsLabel?.let { label ->
                         LevelDetailRow(
                             label = "世界田联",
-                            value = label.bilingualDisplayName,
+                            value = RacePresentation.worldAthleticsLabel(
+                                label,
+                                RaceLabelDensity.FULL,
+                            ).text,
                         )
                     }
                 }
@@ -258,7 +265,7 @@ private fun RaceDetailContent(
                 DetailRow(
                     icon = Icons.Outlined.Route,
                     label = "路程距离",
-                    value = formatDistance(race.travelDistanceKm),
+                    value = RacePresentation.distance(race.travelDistanceKm),
                 )
             }
         }
@@ -267,27 +274,27 @@ private fun RaceDetailContent(
                 DetailRow(
                     icon = Icons.Outlined.Hotel,
                     label = "预订状态",
-                    value = race.hotelBookingStatus.displayName,
+                    value = RacePresentation.hotelBookingStatus(race.hotelBookingStatus),
                 )
                 DetailRow(
                     icon = Icons.Outlined.Hotel,
                     label = "酒店名称",
-                    value = race.hotelName.orNotFilled(),
+                    value = RacePresentation.optionalText(race.hotelName),
                 )
                 DetailRow(
                     icon = Icons.Outlined.LocationOn,
                     label = "预订平台",
-                    value = race.bookingPlatform.orNotFilled(),
+                    value = RacePresentation.optionalText(race.bookingPlatform),
                 )
                 DetailRow(
                     icon = Icons.Outlined.Hotel,
                     label = "酒店总价",
-                    value = formatCny(race.hotelTotalPriceCents),
+                    value = RacePresentation.cny(race.hotelTotalPriceCents),
                 )
                 DetailRow(
                     icon = Icons.Outlined.Notes,
                     label = "酒店备注",
-                    value = race.hotelNotes.orNotFilled(),
+                    value = RacePresentation.optionalText(race.hotelNotes),
                     multiline = true,
                 )
             }
@@ -297,7 +304,7 @@ private fun RaceDetailContent(
                 DetailRow(
                     icon = Icons.Outlined.Notes,
                     label = "备注",
-                    value = race.raceNotes.orNotFilled(),
+                    value = RacePresentation.optionalText(race.raceNotes),
                     multiline = true,
                 )
             }
@@ -325,7 +332,10 @@ private fun RaceHero(race: Race) {
             fontWeight = FontWeight.Black,
         )
         Text(
-            text = formatRaceDate(race.raceDate),
+            text = RacePresentation.date(
+                race.raceDate,
+                RaceDateStyle.WITH_WEEKDAY,
+            ).text,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -337,7 +347,9 @@ private fun RaceHero(race: Race) {
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "${race.city} · ${race.category.displayName}",
+            text = "${race.city} · ${
+                RacePresentation.category(race.category, RaceLabelDensity.FULL).text
+            }",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -348,7 +360,7 @@ private fun RaceHero(race: Race) {
             contentColor = MaterialTheme.colorScheme.onPrimary,
         ) {
             Text(
-                text = race.status.displayName,
+                text = RacePresentation.status(race.status).text,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelLarge,
             )
@@ -384,7 +396,7 @@ private fun DetailSection(
 private fun DetailRow(
     icon: ImageVector,
     label: String,
-    value: String,
+    value: RaceDisplayText,
     multiline: Boolean = false,
 ) {
     Row(
@@ -407,11 +419,11 @@ private fun DetailRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = value,
+            text = value.text,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = if (value == "未填写") FontWeight.Normal else FontWeight.Medium,
-            color = if (value == "未填写") {
+            fontWeight = if (value.isPlaceholder) FontWeight.Normal else FontWeight.Medium,
+            color = if (value.isPlaceholder) {
                 MaterialTheme.colorScheme.onSurfaceVariant
             } else {
                 MaterialTheme.colorScheme.onSurface
@@ -446,8 +458,6 @@ private fun LevelDetailRow(
         )
     }
 }
-
-private fun String?.orNotFilled(): String = this?.takeIf { it.isNotBlank() } ?: "未填写"
 
 @Preview(showBackground = true)
 @Composable

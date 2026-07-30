@@ -2,12 +2,11 @@ package com.ddupg.runtrip.data.model
 
 enum class CaaRaceLevel(
     val code: String,
-    val displayName: String,
 ) {
-    A1("A1", "A1"),
-    A2("A2", "A2"),
-    B("B", "B"),
-    C("C", "C"),
+    A1("A1"),
+    A2("A2"),
+    B("B"),
+    C("C"),
     ;
 
     companion object {
