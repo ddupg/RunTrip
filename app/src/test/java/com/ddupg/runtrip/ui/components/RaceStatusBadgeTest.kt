@@ -23,7 +23,7 @@ class RaceStatusBadgeTest {
     fun everyStatusHasAnExplicitVisualStyleAndSymbol() {
         assertEquals(
             listOf(
-                RaceStatusVisualSpec(RaceStatusBadgeStyle.PENDING, RaceStatusSymbol.EYE),
+                RaceStatusVisualSpec(RaceStatusBadgeStyle.NEUTRAL, RaceStatusSymbol.EYE),
                 RaceStatusVisualSpec(RaceStatusBadgeStyle.PENDING, RaceStatusSymbol.EDIT),
                 RaceStatusVisualSpec(RaceStatusBadgeStyle.PENDING, RaceStatusSymbol.HOURGLASS),
                 RaceStatusVisualSpec(RaceStatusBadgeStyle.WON, RaceStatusSymbol.STAR),
@@ -37,6 +37,20 @@ class RaceStatusBadgeTest {
             ),
             RaceStatus.entries.map { it.visualSpec() },
         )
+    }
+
+    @Test
+    fun onlyConfirmedAndWonUseFilledContainers() {
+        RaceStatusBadgeStyle.entries.forEach { style ->
+            val colors = RunTripLightColors.raceStatusBadgeColors(style)
+            val shouldBeFilled = style == RaceStatusBadgeStyle.CONFIRMED ||
+                style == RaceStatusBadgeStyle.WON
+
+            assertEquals("$style fill", shouldBeFilled, colors.containerColor != Color.Transparent)
+            if (!shouldBeFilled) {
+                assertEquals("$style border", null, colors.borderColor)
+            }
+        }
     }
 
     @Test
