@@ -4,18 +4,15 @@ import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
-import com.ddupg.runtrip.data.model.RaceInput
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceMutationResult
-import com.ddupg.runtrip.data.repository.RaceRepository
+import com.ddupg.runtrip.testing.TestRaceRepository
+import com.ddupg.runtrip.testing.testRace
 import java.time.LocalDate
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -47,7 +44,7 @@ class RaceFormViewModelTest {
 
     @Test
     fun draftChangeClearsOnlyErrorsForChangedFields() {
-        val viewModel = RaceFormViewModel(FakeRaceRepository(), raceId = null)
+        val viewModel = RaceFormViewModel(TestRaceRepository(), raceId = null)
         val invalidDraft = viewModel.uiState.value.draft
 
         viewModel.save()
@@ -62,7 +59,7 @@ class RaceFormViewModelTest {
 
     @Test
     fun saveCreatesRaceFromCompleteDraft() = runTest(testDispatcher) {
-        val repository = FakeRaceRepository()
+        val repository = TestRaceRepository()
         val viewModel = RaceFormViewModel(repository, raceId = null)
         viewModel.updateDraft(
             validDraft().copy(
@@ -76,7 +73,7 @@ class RaceFormViewModelTest {
         viewModel.save()
         advanceUntilIdle()
 
-        val createdInput = requireNotNull(repository.createdInput)
+        val createdInput = repository.createdInputs.single()
         assertEquals("横店马拉松", createdInput.name)
         assertEquals(CaaRaceLevel.A1, createdInput.caaRaceLevel)
         assertEquals(WorldAthleticsLabel.PLATINUM, createdInput.worldAthleticsLabel)
@@ -87,7 +84,7 @@ class RaceFormViewModelTest {
 
     @Test
     fun editLoadsRaceIntoDraftAndUpdatesIt() = runTest(testDispatcher) {
-        val repository = FakeRaceRepository(existingRace())
+        val repository = TestRaceRepository(listOf(existingRace()))
         val viewModel = RaceFormViewModel(repository, raceId = "race-id")
 
         advanceUntilIdle()
@@ -104,14 +101,15 @@ class RaceFormViewModelTest {
         viewModel.save()
         advanceUntilIdle()
 
-        assertEquals("race-id", repository.updatedRaceId)
-        assertEquals("横店马拉松 2026", repository.updatedInput?.name)
+        val updateCall = repository.updateCalls.single()
+        assertEquals("race-id", updateCall.id)
+        assertEquals("横店马拉松 2026", updateCall.input.name)
         assertTrue(viewModel.uiState.value.isSaveComplete)
     }
 
     @Test
     fun missingRaceKeepsEditFormOpenWithExplicitFailure() = runTest(testDispatcher) {
-        val repository = FakeRaceRepository(existingRace()).apply {
+        val repository = TestRaceRepository(listOf(existingRace())).apply {
             updateResult = RaceMutationResult.NOT_FOUND
         }
         val viewModel = RaceFormViewModel(repository, raceId = "race-id")
@@ -127,8 +125,8 @@ class RaceFormViewModelTest {
 
     @Test
     fun failedSaveIsRepresentedInUiState() = runTest(testDispatcher) {
-        val repository = FakeRaceRepository().apply {
-            createError = IllegalStateException("write failed")
+        val repository = TestRaceRepository().apply {
+            create.failure = IllegalStateException("write failed")
         }
         val viewModel = RaceFormViewModel(repository, raceId = null)
         viewModel.updateDraft(validDraft())
@@ -142,8 +140,8 @@ class RaceFormViewModelTest {
 
     @Test
     fun duplicateSaveWhileWritingCreatesOnlyOneRace() = runTest(testDispatcher) {
-        val repository = FakeRaceRepository().apply {
-            createGate = CompletableDeferred()
+        val repository = TestRaceRepository().apply {
+            create.gate = CompletableDeferred()
         }
         val viewModel = RaceFormViewModel(repository, raceId = null)
         viewModel.updateDraft(validDraft())
@@ -152,8 +150,8 @@ class RaceFormViewModelTest {
         viewModel.save()
         runCurrent()
 
-        assertEquals(1, repository.createCalls)
-        repository.createGate?.complete(Unit)
+        assertEquals(1, repository.create.callCount)
+        repository.create.gate?.complete(Unit)
         advanceUntilIdle()
     }
 
@@ -166,7 +164,7 @@ class RaceFormViewModelTest {
         hotelBookingStatus = HotelBookingStatus.BOOKED,
     )
 
-    private fun existingRace(): Race = Race(
+    private fun existingRace(): Race = testRace(
         id = "race-id",
         name = "横店马拉松",
         city = "金华",
@@ -186,45 +184,4 @@ class RaceFormViewModelTest {
         updatedAtEpochMillis = 2_000,
         recordVersion = 2,
     )
-}
-
-private class FakeRaceRepository(
-    initialRace: Race? = null,
-) : RaceRepository {
-    private val race = MutableStateFlow(initialRace)
-
-    var createdInput: RaceInput? = null
-    var updatedRaceId: String? = null
-    var updatedInput: RaceInput? = null
-    var createError: RuntimeException? = null
-    var createGate: CompletableDeferred<Unit>? = null
-    var createCalls = 0
-    var updateResult = RaceMutationResult.APPLIED
-
-    override fun observeRaces(): Flow<List<Race>> =
-        race.map { currentRace -> listOfNotNull(currentRace) }
-
-    override fun observeRace(id: String): Flow<Race?> =
-        race.map { currentRace -> currentRace?.takeIf { it.id == id } }
-
-    override suspend fun create(input: RaceInput): String {
-        createCalls += 1
-        createGate?.await()
-        createError?.let { throw it }
-        createdInput = input
-        return "created-id"
-    }
-
-    override suspend fun update(id: String, input: RaceInput): RaceMutationResult {
-        updatedRaceId = id
-        updatedInput = input
-        return updateResult
-    }
-
-    override suspend fun updateStatus(
-        id: String,
-        status: RaceStatus,
-    ): RaceMutationResult = RaceMutationResult.NOT_FOUND
-
-    override suspend fun delete(id: String): RaceMutationResult = RaceMutationResult.NOT_FOUND
 }

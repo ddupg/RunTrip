@@ -55,6 +55,7 @@ app/src/main/java/com/ddupg/runtrip/
 - 数据 model 只保留稳定 code；中文标签和格式规则统一放在 `RacePresentation`。
 - Room 数据结构变化需要提供迁移，并提交 `app/schemas/` 中的 schema。
 - 持久化生命周期测试只通过 `RaceRepository` 操作真实的内存 Room 数据库，避免 Fake DAO 复制 SQL 行为。
+- Feature ViewModel 测试统一使用 `TestRaceRepository` 控制公开 mutation 的 gate、failure 和结果；存储规范化、SQL 与 migration 不由 test adapter 模拟。
 - 行为变化需要同步测试和相关文档。
 - 保持应用为本地存储的单机应用，不引入账号、后端、联网、云同步、通知或多端能力。
 
