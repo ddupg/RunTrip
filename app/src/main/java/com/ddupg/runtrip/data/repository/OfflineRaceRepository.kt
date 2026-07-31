@@ -35,9 +35,9 @@ class OfflineRaceRepository(
         return id
     }
 
-    override suspend fun update(id: String, input: RaceInput) {
+    override suspend fun update(id: String, input: RaceInput): RaceMutationResult {
         val currentRace = raceDao.getById(id)?.toDomain()
-            ?: throw IllegalArgumentException("Race not found: $id")
+            ?: return RaceMutationResult.NOT_FOUND
         val normalizedInput = input.validatedAndNormalized()
         val updatedRace = normalizedInput.toRace(
             id = id,
@@ -45,20 +45,24 @@ class OfflineRaceRepository(
             updatedAtEpochMillis = currentTimeMillis(),
             recordVersion = currentRace.recordVersion + 1,
         )
-        raceDao.upsert(updatedRace.toEntity())
+        return raceDao.updateExisting(updatedRace.toEntity()).toMutationResult()
     }
 
-    override suspend fun updateStatus(id: String, status: RaceStatus): Boolean =
-        raceDao.updateStatusAndAdvanceVersion(
+    override suspend fun updateStatus(id: String, status: RaceStatus): RaceMutationResult {
+        val updatedRows = raceDao.updateStatusAndAdvanceVersion(
             id = id,
             statusCode = status.code,
             updatedAtEpochMillis = currentTimeMillis(),
-        ) > 0
-
-    override suspend fun delete(id: String) {
-        raceDao.deleteById(id)
+        )
+        return updatedRows.toMutationResult()
     }
+
+    override suspend fun delete(id: String): RaceMutationResult =
+        raceDao.deleteById(id).toMutationResult()
 }
+
+private fun Int.toMutationResult(): RaceMutationResult =
+    if (this > 0) RaceMutationResult.APPLIED else RaceMutationResult.NOT_FOUND
 
 private fun RaceInput.toRace(
     id: String,

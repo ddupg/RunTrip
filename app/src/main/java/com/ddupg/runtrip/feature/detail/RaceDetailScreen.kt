@@ -83,8 +83,8 @@ fun RaceDetailRoute(
     val viewModel: RaceDetailViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(viewModel) {
-        viewModel.deletedEvents.collect { onDeleted() }
+    LaunchedEffect(uiState.isDeleteComplete) {
+        if (uiState.isDeleteComplete) onDeleted()
     }
 
     RaceDetailScreen(

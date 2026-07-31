@@ -3,12 +3,11 @@ package com.ddupg.runtrip.feature.form
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.ddupg.runtrip.data.repository.RaceMutationResult
 import com.ddupg.runtrip.data.repository.RaceRepository
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -22,9 +21,6 @@ class RaceFormViewModel(
         RaceFormUiState(isLoading = raceId != null),
     )
     val uiState: StateFlow<RaceFormUiState> = _uiState.asStateFlow()
-
-    private val _savedEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val savedEvents: SharedFlow<Unit> = _savedEvents.asSharedFlow()
 
     init {
         if (raceId != null) {
@@ -47,21 +43,40 @@ class RaceFormViewModel(
     }
 
     fun save() {
-        val validation = validateRaceForm(_uiState.value.draft)
+        val currentState = _uiState.value
+        if (currentState.isSaving || currentState.isSaveComplete) return
+
+        val validation = validateRaceForm(currentState.draft)
         if (validation.input == null) {
             _uiState.update { it.copy(errors = validation.errors) }
             return
         }
 
+        _uiState.update { it.copy(isSaving = true, saveError = null) }
         viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true, saveError = null) }
             try {
-                if (raceId == null) {
+                val result = if (raceId == null) {
                     repository.create(validation.input)
+                    RaceMutationResult.APPLIED
                 } else {
                     repository.update(raceId, validation.input)
                 }
-                _savedEvents.emit(Unit)
+
+                _uiState.update {
+                    when (result) {
+                        RaceMutationResult.APPLIED -> it.copy(
+                            isSaving = false,
+                            isSaveComplete = true,
+                        )
+
+                        RaceMutationResult.NOT_FOUND -> it.copy(
+                            isSaving = false,
+                            saveError = "没有找到这条比赛记录",
+                        )
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: RuntimeException) {
                 _uiState.update {
                     it.copy(

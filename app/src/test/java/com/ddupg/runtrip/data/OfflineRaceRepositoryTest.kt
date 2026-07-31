@@ -6,20 +6,20 @@ import androidx.test.core.app.ApplicationProvider
 import com.ddupg.runtrip.data.local.RunTripDatabase
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
+import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceInput
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.OfflineRaceRepository
+import com.ddupg.runtrip.data.repository.RaceMutationResult
 import com.ddupg.runtrip.data.repository.RaceRepository
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -91,7 +91,7 @@ class OfflineRaceRepositoryTest {
         repository.create(baseInput())
         now = 2_000L
 
-        repository.update(
+        val result = repository.update(
             id = "fixed-id",
             input = RaceInput(
                 name = "  杭州半程马拉松 ",
@@ -111,6 +111,7 @@ class OfflineRaceRepositoryTest {
             ),
         )
 
+        assertEquals(RaceMutationResult.APPLIED, result)
         val saved = requireNotNull(repository.observeRace("fixed-id").first())
         assertEquals("杭州半程马拉松", saved.name)
         assertEquals("杭州", saved.city)
@@ -133,22 +134,41 @@ class OfflineRaceRepositoryTest {
         repository.create(baseInput())
         now = 2_000L
 
-        assertTrue(repository.updateStatus("fixed-id", RaceStatus.DRAW_WON))
+        assertEquals(
+            RaceMutationResult.APPLIED,
+            repository.updateStatus("fixed-id", RaceStatus.DRAW_WON),
+        )
 
         val saved = requireNotNull(repository.observeRace("fixed-id").first())
         assertEquals(RaceStatus.DRAW_WON, saved.status)
         assertEquals(2_000L, saved.updatedAtEpochMillis)
         assertEquals(2, saved.recordVersion)
-        assertFalse(repository.updateStatus("missing-id", RaceStatus.FINISHED))
     }
 
     @Test
     fun deletePermanentlyRemovesRace() = runTest {
         repository.create(baseInput())
 
-        repository.delete("fixed-id")
+        assertEquals(RaceMutationResult.APPLIED, repository.delete("fixed-id"))
 
         assertNull(repository.observeRace("fixed-id").first())
+    }
+
+    @Test
+    fun missingMutationsReturnNotFoundWithoutCreatingRecords() = runTest {
+        assertEquals(
+            RaceMutationResult.NOT_FOUND,
+            repository.update("missing-id", baseInput()),
+        )
+        assertEquals(
+            RaceMutationResult.NOT_FOUND,
+            repository.updateStatus("missing-id", RaceStatus.FINISHED),
+        )
+        assertEquals(
+            RaceMutationResult.NOT_FOUND,
+            repository.delete("missing-id"),
+        )
+        assertEquals(emptyList<Race>(), repository.observeRaces().first())
     }
 
     private fun baseInput(): RaceInput = RaceInput(

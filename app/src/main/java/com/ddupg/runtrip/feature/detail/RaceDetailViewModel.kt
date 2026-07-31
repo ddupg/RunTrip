@@ -5,12 +5,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.repository.RaceRepository
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -20,6 +18,7 @@ data class RaceDetailUiState(
     val race: Race? = null,
     val isLoading: Boolean = true,
     val isDeleting: Boolean = false,
+    val isDeleteComplete: Boolean = false,
     val deleteError: String? = null,
 )
 
@@ -43,15 +42,22 @@ class RaceDetailViewModel(
         initialValue = RaceDetailUiState(),
     )
 
-    private val _deletedEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val deletedEvents: SharedFlow<Unit> = _deletedEvents.asSharedFlow()
-
     fun deleteRace() {
+        val currentState = operationState.value
+        if (currentState.isDeleting || currentState.isDeleteComplete) return
+
+        operationState.update { it.copy(isDeleting = true, deleteError = null) }
         viewModelScope.launch {
-            operationState.update { it.copy(isDeleting = true, deleteError = null) }
             try {
                 repository.delete(raceId)
-                _deletedEvents.emit(Unit)
+                operationState.update {
+                    it.copy(
+                        isDeleting = false,
+                        isDeleteComplete = true,
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: RuntimeException) {
                 operationState.update {
                     it.copy(

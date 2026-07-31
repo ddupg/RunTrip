@@ -41,11 +41,11 @@ app/src/main/java/com/ddupg/runtrip/
 
 比赛表单使用 `RaceDraft` 表示尚未保存的比赛草稿。比赛编辑 module 集中负责草稿转换、校验、加载和保存；Compose 只渲染状态并提交完整的草稿变化。
 
-`RaceRepository` 是比赛持久化生命周期的公开边界。`OfflineRaceRepository` 与 Room adapter 集中负责输入规范化、实体映射、创建/更新时间和 `recordVersion` 推进；上层功能不直接依赖 DAO。
+`RaceRepository` 是比赛持久化生命周期的公开边界。`OfflineRaceRepository` 与 Room adapter 集中负责输入规范化、实体映射、创建/更新时间和 `recordVersion` 推进；修改与删除统一返回 `APPLIED` 或 `NOT_FOUND`，上层功能不直接依赖 DAO。
 
 `RacePresentation` 集中负责比赛日期、星期、距离、金额、缺省值和各类 code 的中文展示语义。Home、Detail、Form adapter 只决定布局和 full/compact 展示密度，不在本地重写文案或格式规则。
 
-首页浏览 module 集中负责日期驱动的分组投影、分段与状态筛选、快捷状态选择，以及 mutation 的保存中/失败结果。`RaceRepository` 和 `DaySource` 是可替换 adapter；Compose 只渲染 `HomeUiState` 并发送用户动作。
+首页浏览 module 集中负责日期驱动的分组投影、分段与状态筛选、快捷状态选择，以及 mutation 的保存中/失败结果。表单与详情页把保存、删除的进行中、完成和失败结果保存在各自的 `UiState`，避免导航回调丢失。`RaceRepository` 和 `DaySource` 是可替换 adapter；Compose 只渲染状态并发送用户动作。
 
 ## 数据与变更约定
 
