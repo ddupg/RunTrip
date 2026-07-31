@@ -43,6 +43,8 @@ app/src/main/java/com/ddupg/runtrip/
 
 `RaceRepository` 是比赛持久化生命周期的公开边界。`OfflineRaceRepository` 与 Room adapter 集中负责输入规范化、实体映射、创建/更新时间和 `recordVersion` 推进；修改与删除统一返回 `APPLIED` 或 `NOT_FOUND`，上层功能不直接依赖 DAO。
 
+`RunTripSchemaMigrations` 集中维护完整的 Room migration chain，`RunTripDatabase.create` 只负责装配。升级测试从已提交的旧版 schema 创建真实文件数据库，再通过生产数据库入口和 `RaceRepository` 验证旧数据与最终 schema。
+
 `RacePresentation` 集中负责比赛日期、星期、距离、金额、缺省值和各类 code 的中文展示语义。Home、Detail、Form adapter 只决定布局和 full/compact 展示密度，不在本地重写文案或格式规则。
 
 首页浏览 module 集中负责日期驱动的分组投影、分段与状态筛选、快捷状态选择，以及 mutation 的保存中/失败结果。表单与详情页把保存、删除的进行中、完成和失败结果保存在各自的 `UiState`，避免导航回调丢失。`RaceRepository` 和 `DaySource` 是可替换 adapter；Compose 只渲染状态并发送用户动作。
