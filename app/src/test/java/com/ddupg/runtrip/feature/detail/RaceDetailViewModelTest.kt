@@ -1,18 +1,11 @@
 package com.ddupg.runtrip.feature.detail
 
-import com.ddupg.runtrip.data.model.HotelBookingStatus
-import com.ddupg.runtrip.data.model.Race
-import com.ddupg.runtrip.data.model.RaceCategory
-import com.ddupg.runtrip.data.model.RaceInput
-import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.repository.RaceMutationResult
-import com.ddupg.runtrip.data.repository.RaceRepository
-import java.time.LocalDate
+import com.ddupg.runtrip.testing.TestRaceRepository
+import com.ddupg.runtrip.testing.testRace
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -52,7 +45,9 @@ class RaceDetailViewModelTest {
             RaceMutationResult.NOT_FOUND,
         ).forEach { result ->
             val viewModel = RaceDetailViewModel(
-                repository = FakeDetailRepository(deleteResult = result),
+                repository = TestRaceRepository(listOf(testRace())).apply {
+                    deleteResult = result
+                },
                 raceId = "race-id",
             )
             startCollecting(viewModel)
@@ -70,10 +65,10 @@ class RaceDetailViewModelTest {
     @Test
     fun duplicateDeleteWhileWritingRunsOnceAndFailureIsVisible() = runTest(testDispatcher) {
         val deleteGate = CompletableDeferred<Unit>()
-        val repository = FakeDetailRepository(
-            deleteError = IllegalStateException("write failed"),
-            deleteGate = deleteGate,
-        )
+        val repository = TestRaceRepository(listOf(testRace())).apply {
+            delete.failure = IllegalStateException("write failed")
+            delete.gate = deleteGate
+        }
         val viewModel = RaceDetailViewModel(repository, "race-id")
         startCollecting(viewModel)
         advanceUntilIdle()
@@ -82,7 +77,7 @@ class RaceDetailViewModelTest {
         viewModel.deleteRace()
         runCurrent()
 
-        assertEquals(1, repository.deleteCalls)
+        assertEquals(1, repository.delete.callCount)
         deleteGate.complete(Unit)
         advanceUntilIdle()
 
@@ -97,56 +92,3 @@ class RaceDetailViewModelTest {
         }
     }
 }
-
-private class FakeDetailRepository(
-    private val deleteResult: RaceMutationResult = RaceMutationResult.APPLIED,
-    private val deleteError: RuntimeException? = null,
-    private val deleteGate: CompletableDeferred<Unit>? = null,
-) : RaceRepository {
-    private val race = MutableStateFlow(detailRace())
-    var deleteCalls = 0
-
-    override fun observeRaces(): Flow<List<Race>> =
-        throw UnsupportedOperationException("Not used by detail tests")
-
-    override fun observeRace(id: String): Flow<Race?> = race
-
-    override suspend fun create(input: RaceInput): String =
-        throw UnsupportedOperationException("Not used by detail tests")
-
-    override suspend fun update(id: String, input: RaceInput): RaceMutationResult =
-        throw UnsupportedOperationException("Not used by detail tests")
-
-    override suspend fun updateStatus(
-        id: String,
-        status: RaceStatus,
-    ): RaceMutationResult = throw UnsupportedOperationException("Not used by detail tests")
-
-    override suspend fun delete(id: String): RaceMutationResult {
-        deleteCalls += 1
-        deleteGate?.await()
-        deleteError?.let { throw it }
-        return deleteResult
-    }
-}
-
-private fun detailRace(): Race = Race(
-    id = "race-id",
-    name = "横店马拉松",
-    city = "金华",
-    raceDate = LocalDate.of(2026, 11, 15),
-    category = RaceCategory.MARATHON,
-    status = RaceStatus.DRAW_PENDING,
-    caaRaceLevel = null,
-    worldAthleticsLabel = null,
-    travelDistanceKm = null,
-    hotelBookingStatus = HotelBookingStatus.NOT_BOOKED,
-    hotelName = null,
-    bookingPlatform = null,
-    hotelTotalPriceCents = null,
-    hotelNotes = null,
-    raceNotes = null,
-    createdAtEpochMillis = 1_000,
-    updatedAtEpochMillis = 1_000,
-    recordVersion = 1,
-)

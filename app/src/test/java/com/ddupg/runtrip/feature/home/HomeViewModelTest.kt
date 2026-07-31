@@ -1,12 +1,10 @@
 package com.ddupg.runtrip.feature.home
 
-import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
-import com.ddupg.runtrip.data.model.RaceCategory
-import com.ddupg.runtrip.data.model.RaceInput
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.repository.RaceMutationResult
-import com.ddupg.runtrip.data.repository.RaceRepository
+import com.ddupg.runtrip.testing.TestRaceRepository
+import com.ddupg.runtrip.testing.testRace
 import java.time.LocalDate
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -14,8 +12,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -49,7 +45,7 @@ class HomeViewModelTest {
 
     @Test
     fun dayChangeReprojectsRacesWithoutRepositoryEmission() = runTest(testDispatcher) {
-        val repository = FakeHomeRepository(
+        val repository = TestRaceRepository(
             listOf(race(id = "today", date = today)),
         )
         val daySource = MutableDaySource(today)
@@ -76,11 +72,11 @@ class HomeViewModelTest {
 
     @Test
     fun quickStatusSelectionAndSavingAreRepresentedInState() = runTest(testDispatcher) {
-        val repository = FakeHomeRepository(
+        val repository = TestRaceRepository(
             listOf(race(id = "race-id", date = today.plusDays(1))),
         )
         val updateGate = CompletableDeferred<Unit>()
-        repository.updateGate = updateGate
+        repository.updateStatus.gate = updateGate
         val viewModel = HomeViewModel(repository, MutableDaySource(today))
         startCollecting(viewModel)
         advanceUntilIdle()
@@ -113,10 +109,10 @@ class HomeViewModelTest {
 
     @Test
     fun missingRaceKeepsQuickStatusOpenWithExplicitFailure() = runTest(testDispatcher) {
-        val repository = FakeHomeRepository(
+        val repository = TestRaceRepository(
             listOf(race(id = "race-id", date = today.plusDays(1))),
         ).apply {
-            updateResult = RaceMutationResult.NOT_FOUND
+            updateStatusResult = RaceMutationResult.NOT_FOUND
         }
         val viewModel = HomeViewModel(repository, MutableDaySource(today))
         startCollecting(viewModel)
@@ -135,10 +131,10 @@ class HomeViewModelTest {
 
     @Test
     fun failedQuickStatusCanRetryToSuccess() = runTest(testDispatcher) {
-        val repository = FakeHomeRepository(
+        val repository = TestRaceRepository(
             listOf(race(id = "race-id", date = today.plusDays(1))),
         ).apply {
-            updateError = IllegalStateException("write failed")
+            updateStatus.failure = IllegalStateException("write failed")
         }
         val viewModel = HomeViewModel(repository, MutableDaySource(today))
         startCollecting(viewModel)
@@ -154,7 +150,7 @@ class HomeViewModelTest {
         )
         assertEquals("race-id", viewModel.uiState.value.quickStatusRace?.id)
 
-        repository.updateError = null
+        repository.updateStatus.failure = null
         viewModel.updateQuickStatus(RaceStatus.DRAW_WON)
         advanceUntilIdle()
 
@@ -175,76 +171,9 @@ private class MutableDaySource(initialDate: LocalDate) : DaySource {
     override fun observeToday(): Flow<LocalDate> = today
 }
 
-private class FakeHomeRepository(
-    initialRaces: List<Race>,
-) : RaceRepository {
-    private val races = MutableStateFlow(initialRaces)
-
-    var updateResult = RaceMutationResult.APPLIED
-    var updateError: RuntimeException? = null
-    var updateGate: CompletableDeferred<Unit>? = null
-
-    override fun observeRaces(): Flow<List<Race>> = races
-
-    override fun observeRace(id: String): Flow<Race?> =
-        races.map { entries -> entries.firstOrNull { it.id == id } }
-
-    override suspend fun create(input: RaceInput): String =
-        throw UnsupportedOperationException("Not used by home tests")
-
-    override suspend fun update(id: String, input: RaceInput): RaceMutationResult {
-        throw UnsupportedOperationException("Not used by home tests")
-    }
-
-    override suspend fun updateStatus(
-        id: String,
-        status: RaceStatus,
-    ): RaceMutationResult {
-        updateGate?.await()
-        updateError?.let { throw it }
-        if (updateResult == RaceMutationResult.NOT_FOUND) {
-            return RaceMutationResult.NOT_FOUND
-        }
-
-        var found = false
-        races.update { entries ->
-            entries.map { race ->
-                if (race.id == id) {
-                    found = true
-                    race.copy(
-                        status = status,
-                        recordVersion = race.recordVersion + 1,
-                    )
-                } else {
-                    race
-                }
-            }
-        }
-        return if (found) RaceMutationResult.APPLIED else RaceMutationResult.NOT_FOUND
-    }
-
-    override suspend fun delete(id: String): RaceMutationResult {
-        throw UnsupportedOperationException("Not used by home tests")
-    }
-}
-
-private fun race(id: String, date: LocalDate): Race = Race(
+private fun race(id: String, date: LocalDate): Race = testRace(
     id = id,
     name = id,
     city = "杭州",
     raceDate = date,
-    category = RaceCategory.MARATHON,
-    status = RaceStatus.DRAW_PENDING,
-    caaRaceLevel = null,
-    worldAthleticsLabel = null,
-    travelDistanceKm = null,
-    hotelBookingStatus = HotelBookingStatus.NOT_BOOKED,
-    hotelName = null,
-    bookingPlatform = null,
-    hotelTotalPriceCents = null,
-    hotelNotes = null,
-    raceNotes = null,
-    createdAtEpochMillis = 1_000,
-    updatedAtEpochMillis = 1_000,
-    recordVersion = 1,
 )
