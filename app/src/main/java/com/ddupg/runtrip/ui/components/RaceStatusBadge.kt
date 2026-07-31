@@ -34,6 +34,7 @@ import com.ddupg.runtrip.ui.presentation.RacePresentation
 internal enum class RaceStatusBadgeStyle {
     CONFIRMED,
     WON,
+    NEUTRAL,
     PENDING,
     MUTED,
     FINISHED,
@@ -57,7 +58,7 @@ internal data class RaceStatusVisualSpec(
 
 internal fun RaceStatus.visualSpec(): RaceStatusVisualSpec = when (this) {
     RaceStatus.WATCHING -> RaceStatusVisualSpec(
-        RaceStatusBadgeStyle.PENDING,
+        RaceStatusBadgeStyle.NEUTRAL,
         RaceStatusSymbol.EYE,
     )
 
@@ -126,10 +127,14 @@ internal fun ColorScheme.raceStatusBadgeColors(
             )
         }
 
+        RaceStatusBadgeStyle.NEUTRAL -> RaceStatusBadgeColors(
+            containerColor = Color.Transparent,
+            contentColor = onSurfaceVariant,
+        )
+
         RaceStatusBadgeStyle.PENDING -> RaceStatusBadgeColors(
             containerColor = Color.Transparent,
             contentColor = if (darkTheme) onSurface else secondary,
-            borderColor = outline,
         )
 
         RaceStatusBadgeStyle.MUTED -> RaceStatusBadgeColors(
@@ -140,7 +145,6 @@ internal fun ColorScheme.raceStatusBadgeColors(
         RaceStatusBadgeStyle.FINISHED -> RaceStatusBadgeColors(
             containerColor = Color.Transparent,
             contentColor = onSurfaceVariant,
-            borderColor = outline,
         )
     }
 }
@@ -149,25 +153,35 @@ internal fun ColorScheme.raceStatusBadgeColors(
 internal fun RunTripRaceStatusBadge(
     status: RaceStatus,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
     onClick: (() -> Unit)? = null,
 ) {
     val spec = status.visualSpec()
     val colors = MaterialTheme.colorScheme.raceStatusBadgeColors(spec.style)
     val border = colors.borderColor?.let { BorderStroke(1.dp, it) }
+    val emphasized = spec.style == RaceStatusBadgeStyle.CONFIRMED ||
+        spec.style == RaceStatusBadgeStyle.WON
+    val contentPadding = if (emphasized) {
+        PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+    } else {
+        PaddingValues(vertical = 2.dp)
+    }
     val content = @Composable {
         Row(
             modifier = Modifier.padding(contentPadding),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (emphasized) 3.dp else 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             RaceStatusIcon(
                 status = status,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(if (emphasized) 14.dp else 16.dp),
             )
             Text(
                 text = RacePresentation.status(status).text,
-                style = MaterialTheme.typography.labelLarge,
+                style = if (emphasized) {
+                    MaterialTheme.typography.labelLarge
+                } else {
+                    MaterialTheme.typography.bodyMedium
+                },
             )
         }
     }

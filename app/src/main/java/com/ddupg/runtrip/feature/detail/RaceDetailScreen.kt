@@ -354,10 +354,7 @@ private fun RaceHero(race: Race) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(12.dp))
-        RunTripRaceStatusBadge(
-            status = race.status,
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-        )
+        RunTripRaceStatusBadge(status = race.status)
     }
 }
 
