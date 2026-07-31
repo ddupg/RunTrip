@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -65,6 +64,8 @@ import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
 import com.ddupg.runtrip.ui.components.RunTripFilterChip
+import com.ddupg.runtrip.ui.components.RaceStatusIcon
+import com.ddupg.runtrip.ui.components.RunTripRaceStatusBadge
 import com.ddupg.runtrip.ui.presentation.RaceLabelDensity
 import com.ddupg.runtrip.ui.presentation.RacePresentation
 import com.ddupg.runtrip.ui.theme.RunTripTheme
@@ -406,7 +407,7 @@ private fun RaceTimelineRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                StatusBadge(
+                RunTripRaceStatusBadge(
                     status = race.status,
                     onClick = onQuickStatus,
                 )
@@ -422,25 +423,6 @@ private fun RaceTimelineRow(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun StatusBadge(
-    status: RaceStatus,
-    onClick: () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
-    ) {
-        Text(
-            text = RacePresentation.status(status).text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelLarge,
-        )
     }
 }
 
@@ -577,6 +559,11 @@ private fun QuickStatusSheet(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 13.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        RaceStatusIcon(
+                            status = status,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(Modifier.width(12.dp))
                         Text(
                             text = RacePresentation.status(status).text,
                             modifier = Modifier.weight(1f),

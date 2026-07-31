@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
@@ -62,6 +61,7 @@ import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
 import com.ddupg.runtrip.ui.components.runTripTextButtonColors
+import com.ddupg.runtrip.ui.components.RunTripRaceStatusBadge
 import com.ddupg.runtrip.ui.presentation.RaceDateStyle
 import com.ddupg.runtrip.ui.presentation.RaceDisplayText
 import com.ddupg.runtrip.ui.presentation.RaceLabelDensity
@@ -354,17 +354,10 @@ private fun RaceHero(race: Race) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(12.dp))
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-        ) {
-            Text(
-                text = RacePresentation.status(race.status).text,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                style = MaterialTheme.typography.labelLarge,
-            )
-        }
+        RunTripRaceStatusBadge(
+            status = race.status,
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        )
     }
 }
 
