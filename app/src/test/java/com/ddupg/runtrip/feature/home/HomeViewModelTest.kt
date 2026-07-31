@@ -5,6 +5,7 @@ import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceInput
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.repository.RaceMutationResult
 import com.ddupg.runtrip.data.repository.RaceRepository
 import java.time.LocalDate
 import kotlinx.coroutines.CompletableDeferred
@@ -115,7 +116,7 @@ class HomeViewModelTest {
         val repository = FakeHomeRepository(
             listOf(race(id = "race-id", date = today.plusDays(1))),
         ).apply {
-            updateResult = false
+            updateResult = RaceMutationResult.NOT_FOUND
         }
         val viewModel = HomeViewModel(repository, MutableDaySource(today))
         startCollecting(viewModel)
@@ -179,7 +180,7 @@ private class FakeHomeRepository(
 ) : RaceRepository {
     private val races = MutableStateFlow(initialRaces)
 
-    var updateResult = true
+    var updateResult = RaceMutationResult.APPLIED
     var updateError: RuntimeException? = null
     var updateGate: CompletableDeferred<Unit>? = null
 
@@ -191,14 +192,19 @@ private class FakeHomeRepository(
     override suspend fun create(input: RaceInput): String =
         throw UnsupportedOperationException("Not used by home tests")
 
-    override suspend fun update(id: String, input: RaceInput) {
+    override suspend fun update(id: String, input: RaceInput): RaceMutationResult {
         throw UnsupportedOperationException("Not used by home tests")
     }
 
-    override suspend fun updateStatus(id: String, status: RaceStatus): Boolean {
+    override suspend fun updateStatus(
+        id: String,
+        status: RaceStatus,
+    ): RaceMutationResult {
         updateGate?.await()
         updateError?.let { throw it }
-        if (!updateResult) return false
+        if (updateResult == RaceMutationResult.NOT_FOUND) {
+            return RaceMutationResult.NOT_FOUND
+        }
 
         var found = false
         races.update { entries ->
@@ -214,10 +220,10 @@ private class FakeHomeRepository(
                 }
             }
         }
-        return found
+        return if (found) RaceMutationResult.APPLIED else RaceMutationResult.NOT_FOUND
     }
 
-    override suspend fun delete(id: String) {
+    override suspend fun delete(id: String): RaceMutationResult {
         throw UnsupportedOperationException("Not used by home tests")
     }
 }

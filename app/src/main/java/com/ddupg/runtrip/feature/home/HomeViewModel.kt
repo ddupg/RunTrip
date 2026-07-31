@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.repository.RaceMutationResult
 import com.ddupg.runtrip.data.repository.RaceRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,10 +90,9 @@ class HomeViewModel(
         }
         viewModelScope.launch {
             val updateResult = try {
-                if (repository.updateStatus(raceId, status)) {
-                    QuickStatusResult.Success
-                } else {
-                    QuickStatusResult.RaceMissing
+                when (repository.updateStatus(raceId, status)) {
+                    RaceMutationResult.APPLIED -> QuickStatusResult.Success
+                    RaceMutationResult.NOT_FOUND -> QuickStatusResult.RaceMissing
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled

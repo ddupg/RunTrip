@@ -5,6 +5,11 @@ import com.ddupg.runtrip.data.model.RaceInput
 import com.ddupg.runtrip.data.model.RaceStatus
 import kotlinx.coroutines.flow.Flow
 
+enum class RaceMutationResult {
+    APPLIED,
+    NOT_FOUND,
+}
+
 interface RaceRepository {
     fun observeRaces(): Flow<List<Race>>
 
@@ -12,9 +17,9 @@ interface RaceRepository {
 
     suspend fun create(input: RaceInput): String
 
-    suspend fun update(id: String, input: RaceInput)
+    suspend fun update(id: String, input: RaceInput): RaceMutationResult
 
-    suspend fun updateStatus(id: String, status: RaceStatus): Boolean
+    suspend fun updateStatus(id: String, status: RaceStatus): RaceMutationResult
 
-    suspend fun delete(id: String)
+    suspend fun delete(id: String): RaceMutationResult
 }

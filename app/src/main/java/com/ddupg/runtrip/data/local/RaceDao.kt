@@ -2,6 +2,7 @@ package com.ddupg.runtrip.data.local
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
@@ -19,6 +20,9 @@ interface RaceDao {
     @Upsert
     suspend fun upsert(race: RaceEntity)
 
+    @Update
+    suspend fun updateExisting(race: RaceEntity): Int
+
     @Query(
         """
         UPDATE races
@@ -35,5 +39,5 @@ interface RaceDao {
     ): Int
 
     @Query("DELETE FROM races WHERE id = :id")
-    suspend fun deleteById(id: String)
+    suspend fun deleteById(id: String): Int
 }

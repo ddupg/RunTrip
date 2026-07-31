@@ -42,6 +42,7 @@ data class RaceFormUiState(
     val errors: RaceFormErrors = RaceFormErrors(),
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
+    val isSaveComplete: Boolean = false,
     val loadError: String? = null,
     val saveError: String? = null,
 )

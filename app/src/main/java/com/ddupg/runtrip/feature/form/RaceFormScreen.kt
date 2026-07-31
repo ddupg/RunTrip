@@ -80,8 +80,8 @@ fun RaceFormRoute(
     val viewModel: RaceFormViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(viewModel) {
-        viewModel.savedEvents.collect { onSaved() }
+    LaunchedEffect(uiState.isSaveComplete) {
+        if (uiState.isSaveComplete) onSaved()
     }
 
     RaceFormScreen(
