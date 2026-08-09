@@ -1,28 +1,37 @@
 package com.ddupg.runtrip.feature.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Hotel
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material3.Button
@@ -31,16 +40,20 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -81,15 +94,27 @@ fun HomeRoute(
     val factory = remember(repository) { HomeViewModel.Factory(repository) }
     val viewModel: HomeViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showFilterSheet by remember { mutableStateOf(false) }
 
     HomeScreen(
         uiState = uiState,
         onSelectSection = viewModel::selectSection,
-        onSelectStatus = viewModel::selectStatus,
+        onOpenFilters = { showFilterSheet = true },
         onAddRace = onAddRace,
         onOpenRace = onOpenRace,
         onQuickStatus = viewModel::openQuickStatus,
     )
+
+    if (showFilterSheet) {
+        RaceFilterSheet(
+            appliedFilter = uiState.filter,
+            onDismiss = { showFilterSheet = false },
+            onConfirm = { filter ->
+                viewModel.applyFilter(filter)
+                showFilterSheet = false
+            },
+        )
+    }
 
     val quickStatusRace = uiState.quickStatusRace
     if (quickStatusRace != null) {
@@ -107,7 +132,7 @@ fun HomeRoute(
 fun HomeScreen(
     uiState: HomeUiState,
     onSelectSection: (RaceSection) -> Unit,
-    onSelectStatus: (RaceStatus?) -> Unit,
+    onOpenFilters: () -> Unit,
     onAddRace: () -> Unit,
     onOpenRace: (String) -> Unit,
     onQuickStatus: (String) -> Unit,
@@ -147,15 +172,15 @@ fun HomeScreen(
                     section = uiState.section,
                     onSelectSection = onSelectSection,
                 )
-                StatusFilters(
-                    selectedStatus = uiState.selectedStatus,
-                    onSelectStatus = onSelectStatus,
+                RaceFilterToolbar(
+                    resultCount = 0,
+                    filter = uiState.filter,
+                    onOpenFilters = onOpenFilters,
                 )
                 HomeEmptyState(
                     modifier = Modifier.weight(1f),
                     section = uiState.section,
-                    hasStatusFilter = uiState.selectedStatus != null,
-                    onAddRace = onAddRace,
+                    isFilteredEmpty = uiState.filter.isActive && uiState.sectionRaceCount > 0,
                 )
             }
         } else {
@@ -164,10 +189,10 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
                 section = uiState.section,
-                selectedStatus = uiState.selectedStatus,
+                filter = uiState.filter,
                 monthGroups = uiState.monthGroups,
                 onSelectSection = onSelectSection,
-                onSelectStatus = onSelectStatus,
+                onOpenFilters = onOpenFilters,
                 onOpenRace = onOpenRace,
                 onQuickStatus = onQuickStatus,
             )
@@ -247,39 +272,203 @@ private fun RaceSectionTabs(
 }
 
 @Composable
-private fun StatusFilters(
-    selectedStatus: RaceStatus?,
-    onSelectStatus: (RaceStatus?) -> Unit,
+private fun RaceFilterToolbar(
+    resultCount: Int,
+    filter: RaceFilter,
+    onOpenFilters: () -> Unit,
 ) {
-    LazyRow(
-        modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),
-        contentPadding = PaddingValues(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        item {
-            RunTripFilterChip(
-                selected = selectedStatus == null,
-                onClick = { onSelectStatus(null) },
-                label = "全部",
-            )
+        Text(
+            text = if (filter.isActive) {
+                "筛选结果 · $resultCount 场"
+            } else {
+                "全部比赛 · $resultCount 场"
+            },
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Surface(
+            onClick = onOpenFilters,
+            shape = RoundedCornerShape(12.dp),
+            color = if (filter.isActive) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+            contentColor = if (filter.isActive) {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            border = BorderStroke(
+                width = 1.dp,
+                color = if (filter.isActive) {
+                    MaterialTheme.colorScheme.tertiary
+                } else {
+                    MaterialTheme.colorScheme.outline
+                },
+            ),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.FilterList,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text("筛选", style = MaterialTheme.typography.labelLarge)
+                if (filter.isActive) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.secondary,
+                        contentColor = MaterialTheme.colorScheme.onSecondary,
+                    ) {
+                        Text(
+                            text = filter.activeDimensionCount.toString(),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                }
+            }
         }
-        items(RaceStatus.entries, key = RaceStatus::code) { status ->
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun RaceFilterSheet(
+    appliedFilter: RaceFilter,
+    onDismiss: () -> Unit,
+    onConfirm: (RaceFilter) -> Unit,
+) {
+    var draftFilter by remember(appliedFilter) { mutableStateOf(appliedFilter) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .navigationBarsPadding()
+                .padding(bottom = 12.dp),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Outlined.Close, contentDescription = "取消筛选")
+                }
+                Text(
+                    text = "筛选比赛",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                TextButton(
+                    onClick = { draftFilter = RaceFilter() },
+                    enabled = draftFilter.isActive,
+                ) {
+                    Text("重置")
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+            ) {
+                FilterOptionGroup(
+                    title = "参赛状态",
+                    options = RaceStatus.entries,
+                    selectedOptions = draftFilter.statuses,
+                    optionLabel = { RacePresentation.status(it).text },
+                    onToggle = { status ->
+                        draftFilter = draftFilter.copy(
+                            statuses = draftFilter.statuses.toggled(status),
+                        )
+                    },
+                )
+                Spacer(Modifier.height(20.dp))
+                FilterOptionGroup(
+                    title = "比赛项目",
+                    options = RaceCategory.entries,
+                    selectedOptions = draftFilter.categories,
+                    optionLabel = {
+                        RacePresentation.category(it, RaceLabelDensity.COMPACT).text
+                    },
+                    onToggle = { category ->
+                        draftFilter = draftFilter.copy(
+                            categories = draftFilter.categories.toggled(category),
+                        )
+                    },
+                )
+            }
+
+            Button(
+                onClick = { onConfirm(draftFilter) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, top = 24.dp, end = 20.dp),
+            ) {
+                Text("确定")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun <T> FilterOptionGroup(
+    title: String,
+    options: List<T>,
+    selectedOptions: Set<T>,
+    optionLabel: (T) -> String,
+    onToggle: (T) -> Unit,
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+    )
+    Spacer(Modifier.height(10.dp))
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        options.forEach { option ->
             RunTripFilterChip(
-                selected = selectedStatus == status,
-                onClick = { onSelectStatus(status) },
-                label = RacePresentation.status(status).text,
+                selected = option in selectedOptions,
+                onClick = { onToggle(option) },
+                label = optionLabel(option),
             )
         }
     }
 }
 
+private fun <T> Set<T>.toggled(value: T): Set<T> =
+    if (value in this) this - value else this + value
+
 @Composable
 private fun RaceTimeline(
     section: RaceSection,
-    selectedStatus: RaceStatus?,
+    filter: RaceFilter,
     monthGroups: List<RaceMonthGroup>,
     onSelectSection: (RaceSection) -> Unit,
-    onSelectStatus: (RaceStatus?) -> Unit,
+    onOpenFilters: () -> Unit,
     onOpenRace: (String) -> Unit,
     onQuickStatus: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -293,9 +482,10 @@ private fun RaceTimeline(
                 section = section,
                 onSelectSection = onSelectSection,
             )
-            StatusFilters(
-                selectedStatus = selectedStatus,
-                onSelectStatus = onSelectStatus,
+            RaceFilterToolbar(
+                resultCount = monthGroups.sumOf { it.races.size },
+                filter = filter,
+                onOpenFilters = onOpenFilters,
             )
         }
         monthGroups.forEach { group ->
@@ -452,8 +642,7 @@ private fun CompactMetadata(
 @Composable
 private fun HomeEmptyState(
     section: RaceSection,
-    hasStatusFilter: Boolean,
-    onAddRace: () -> Unit,
+    isFilteredEmpty: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -464,7 +653,11 @@ private fun HomeEmptyState(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
-                imageVector = Icons.Outlined.CalendarMonth,
+                imageVector = if (isFilteredEmpty) {
+                    Icons.Outlined.FilterList
+                } else {
+                    Icons.Outlined.CalendarMonth
+                },
                 contentDescription = null,
                 modifier = Modifier.size(38.dp),
                 tint = MaterialTheme.colorScheme.primary,
@@ -472,7 +665,7 @@ private fun HomeEmptyState(
             Spacer(Modifier.height(14.dp))
             Text(
                 text = when {
-                    hasStatusFilter -> "没有符合筛选的比赛"
+                    isFilteredEmpty -> "没有符合条件的比赛"
                     section == RaceSection.HISTORY -> "还没有历史比赛"
                     else -> "还没有比赛安排"
                 },
@@ -481,20 +674,14 @@ private fun HomeEmptyState(
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                text = if (hasStatusFilter) {
-                    "换一个参赛状态看看。"
+                text = if (isFilteredEmpty) {
+                    "试试调整筛选条件。"
                 } else {
                     "把报名、酒店和路程放在一起。"
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (!hasStatusFilter && section == RaceSection.UPCOMING) {
-                Spacer(Modifier.height(20.dp))
-                Button(onClick = onAddRace) {
-                    Text("添加第一场比赛")
-                }
-            }
         }
     }
 }
@@ -629,7 +816,7 @@ private fun HomeScreenPreview() {
                 ),
             ),
             onSelectSection = {},
-            onSelectStatus = {},
+            onOpenFilters = {},
             onAddRace = {},
             onOpenRace = {},
             onQuickStatus = {},

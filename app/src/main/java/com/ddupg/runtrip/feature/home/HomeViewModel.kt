@@ -28,11 +28,16 @@ class HomeViewModel(
     ) { races, today, currentControls ->
         HomeUiState(
             section = currentControls.section,
-            selectedStatus = currentControls.selectedStatus,
+            filter = currentControls.filter,
+            sectionRaceCount = countRacesInSection(
+                races = races,
+                section = currentControls.section,
+                today = today,
+            ),
             monthGroups = buildRaceMonthGroups(
                 races = races,
                 section = currentControls.section,
-                selectedStatus = currentControls.selectedStatus,
+                filter = currentControls.filter,
                 today = today,
             ),
             quickStatusRace = currentControls.quickStatusRaceId?.let { selectedId ->
@@ -50,8 +55,8 @@ class HomeViewModel(
         controls.update { it.copy(section = section) }
     }
 
-    fun selectStatus(status: RaceStatus?) {
-        controls.update { it.copy(selectedStatus = status) }
+    fun applyFilter(filter: RaceFilter) {
+        controls.update { it.copy(filter = filter) }
     }
 
     fun openQuickStatus(raceId: String) {
@@ -140,7 +145,7 @@ class HomeViewModel(
 
 private data class HomeControls(
     val section: RaceSection = RaceSection.UPCOMING,
-    val selectedStatus: RaceStatus? = null,
+    val filter: RaceFilter = RaceFilter(),
     val quickStatusRaceId: String? = null,
     val quickStatusUpdate: QuickStatusUpdate = QuickStatusUpdate.Idle,
 )

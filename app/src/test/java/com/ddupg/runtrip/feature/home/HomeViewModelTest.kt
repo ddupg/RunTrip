@@ -1,6 +1,7 @@
 package com.ddupg.runtrip.feature.home
 
 import com.ddupg.runtrip.data.model.Race
+import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.repository.RaceMutationResult
 import com.ddupg.runtrip.testing.TestRaceRepository
@@ -66,6 +67,43 @@ class HomeViewModelTest {
         advanceUntilIdle()
         assertEquals(
             listOf("today"),
+            viewModel.uiState.value.monthGroups.flatMap { it.races }.map { it.id },
+        )
+    }
+
+    @Test
+    fun appliedFilterIsRetainedAcrossSectionChanges() = runTest(testDispatcher) {
+        val repository = TestRaceRepository(
+            listOf(
+                race(id = "upcoming-marathon", date = today.plusDays(1)),
+                race(id = "upcoming-half", date = today.plusDays(2)).copy(
+                    category = RaceCategory.HALF_MARATHON,
+                ),
+                race(id = "history-marathon", date = today.minusDays(1)),
+            ),
+        )
+        val viewModel = HomeViewModel(repository, MutableDaySource(today))
+        startCollecting(viewModel)
+        advanceUntilIdle()
+
+        val filter = RaceFilter(categories = setOf(RaceCategory.MARATHON))
+        viewModel.applyFilter(filter)
+        advanceUntilIdle()
+
+        assertEquals(filter, viewModel.uiState.value.filter)
+        assertEquals(2, viewModel.uiState.value.sectionRaceCount)
+        assertEquals(
+            listOf("upcoming-marathon"),
+            viewModel.uiState.value.monthGroups.flatMap { it.races }.map { it.id },
+        )
+
+        viewModel.selectSection(RaceSection.HISTORY)
+        advanceUntilIdle()
+
+        assertEquals(filter, viewModel.uiState.value.filter)
+        assertEquals(1, viewModel.uiState.value.sectionRaceCount)
+        assertEquals(
+            listOf("history-marathon"),
             viewModel.uiState.value.monthGroups.flatMap { it.races }.map { it.id },
         )
     }

@@ -1,6 +1,7 @@
 package com.ddupg.runtrip.feature.home
 
 import com.ddupg.runtrip.data.model.Race
+import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
 import java.time.LocalDate
 import java.time.YearMonth
@@ -17,11 +18,23 @@ data class RaceMonthGroup(
 
 data class HomeUiState(
     val section: RaceSection = RaceSection.UPCOMING,
-    val selectedStatus: RaceStatus? = null,
+    val filter: RaceFilter = RaceFilter(),
+    val sectionRaceCount: Int = 0,
     val monthGroups: List<RaceMonthGroup> = emptyList(),
     val quickStatusRace: Race? = null,
     val quickStatusUpdate: QuickStatusUpdate = QuickStatusUpdate.Idle,
 )
+
+data class RaceFilter(
+    val statuses: Set<RaceStatus> = emptySet(),
+    val categories: Set<RaceCategory> = emptySet(),
+) {
+    val activeDimensionCount: Int
+        get() = listOf(statuses, categories).count { it.isNotEmpty() }
+
+    val isActive: Boolean
+        get() = activeDimensionCount > 0
+}
 
 sealed interface QuickStatusUpdate {
     data object Idle : QuickStatusUpdate
@@ -34,7 +47,7 @@ sealed interface QuickStatusUpdate {
 fun buildRaceMonthGroups(
     races: List<Race>,
     section: RaceSection,
-    selectedStatus: RaceStatus?,
+    filter: RaceFilter,
     today: LocalDate,
 ): List<RaceMonthGroup> {
     val inSection = races.filter { race ->
@@ -43,7 +56,10 @@ fun buildRaceMonthGroups(
             RaceSection.HISTORY -> race.raceDate.isBefore(today)
         }
     }
-    val filtered = inSection.filter { selectedStatus == null || it.status == selectedStatus }
+    val filtered = inSection.filter { race ->
+        (filter.statuses.isEmpty() || race.status in filter.statuses) &&
+            (filter.categories.isEmpty() || race.category in filter.categories)
+    }
     val sorted = when (section) {
         RaceSection.UPCOMING -> filtered.sortedWith(compareBy(Race::raceDate, Race::createdAtEpochMillis))
         RaceSection.HISTORY -> filtered.sortedWith(
@@ -54,4 +70,15 @@ fun buildRaceMonthGroups(
     return sorted
         .groupBy { YearMonth.from(it.raceDate) }
         .map { (month, monthRaces) -> RaceMonthGroup(month, monthRaces) }
+}
+
+fun countRacesInSection(
+    races: List<Race>,
+    section: RaceSection,
+    today: LocalDate,
+): Int = races.count { race ->
+    when (section) {
+        RaceSection.UPCOMING -> !race.raceDate.isBefore(today)
+        RaceSection.HISTORY -> race.raceDate.isBefore(today)
+    }
 }
