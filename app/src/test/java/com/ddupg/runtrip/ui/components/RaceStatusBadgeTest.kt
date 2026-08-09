@@ -25,7 +25,7 @@ class RaceStatusBadgeTest {
             listOf(
                 RaceStatusVisualSpec(RaceStatusBadgeStyle.NEUTRAL, RaceStatusSymbol.EYE),
                 RaceStatusVisualSpec(RaceStatusBadgeStyle.PENDING, RaceStatusSymbol.EDIT),
-                RaceStatusVisualSpec(RaceStatusBadgeStyle.PENDING, RaceStatusSymbol.HOURGLASS),
+                RaceStatusVisualSpec(RaceStatusBadgeStyle.ATTENTION, RaceStatusSymbol.HOURGLASS),
                 RaceStatusVisualSpec(RaceStatusBadgeStyle.WON, RaceStatusSymbol.STAR),
                 RaceStatusVisualSpec(RaceStatusBadgeStyle.MUTED, RaceStatusSymbol.MINUS_CIRCLE),
                 RaceStatusVisualSpec(
@@ -40,10 +40,11 @@ class RaceStatusBadgeTest {
     }
 
     @Test
-    fun onlyConfirmedAndWonUseFilledContainers() {
+    fun onlyAttentionConfirmedAndWonUseFilledContainers() {
         RaceStatusBadgeStyle.entries.forEach { style ->
             val colors = RunTripLightColors.raceStatusBadgeColors(style)
             val shouldBeFilled = style == RaceStatusBadgeStyle.CONFIRMED ||
+                style == RaceStatusBadgeStyle.ATTENTION ||
                 style == RaceStatusBadgeStyle.WON
 
             assertEquals("$style fill", shouldBeFilled, colors.containerColor != Color.Transparent)
@@ -51,6 +52,18 @@ class RaceStatusBadgeTest {
                 assertEquals("$style border", null, colors.borderColor)
             }
         }
+    }
+
+    @Test
+    fun drawPendingUsesSameHighlightAsConfirmed() {
+        assertEquals(
+            RunTripLightColors.raceStatusBadgeColors(RaceStatusBadgeStyle.CONFIRMED),
+            RunTripLightColors.raceStatusBadgeColors(RaceStatusBadgeStyle.ATTENTION),
+        )
+        assertEquals(
+            RunTripDarkColors.raceStatusBadgeColors(RaceStatusBadgeStyle.CONFIRMED),
+            RunTripDarkColors.raceStatusBadgeColors(RaceStatusBadgeStyle.ATTENTION),
+        )
     }
 
     @Test

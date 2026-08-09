@@ -33,6 +33,7 @@ import com.ddupg.runtrip.ui.presentation.RacePresentation
 
 internal enum class RaceStatusBadgeStyle {
     CONFIRMED,
+    ATTENTION,
     WON,
     NEUTRAL,
     PENDING,
@@ -68,7 +69,7 @@ internal fun RaceStatus.visualSpec(): RaceStatusVisualSpec = when (this) {
     )
 
     RaceStatus.DRAW_PENDING -> RaceStatusVisualSpec(
-        RaceStatusBadgeStyle.PENDING,
+        RaceStatusBadgeStyle.ATTENTION,
         RaceStatusSymbol.HOURGLASS,
     )
 
@@ -110,6 +111,11 @@ internal fun ColorScheme.raceStatusBadgeColors(
     val darkTheme = background.luminance() < 0.5f
     return when (style) {
         RaceStatusBadgeStyle.CONFIRMED -> RaceStatusBadgeColors(
+            containerColor = primary,
+            contentColor = onPrimary,
+        )
+
+        RaceStatusBadgeStyle.ATTENTION -> RaceStatusBadgeColors(
             containerColor = primary,
             contentColor = onPrimary,
         )
@@ -159,6 +165,7 @@ internal fun RunTripRaceStatusBadge(
     val colors = MaterialTheme.colorScheme.raceStatusBadgeColors(spec.style)
     val border = colors.borderColor?.let { BorderStroke(1.dp, it) }
     val emphasized = spec.style == RaceStatusBadgeStyle.CONFIRMED ||
+        spec.style == RaceStatusBadgeStyle.ATTENTION ||
         spec.style == RaceStatusBadgeStyle.WON
     val contentPadding = if (emphasized) {
         PaddingValues(horizontal = 6.dp, vertical = 2.dp)
