@@ -34,7 +34,7 @@ Debug APK 生成在 `app/build/outputs/apk/debug/`。
 ```text
 app/src/main/java/com/ddupg/runtrip/
 ├── data/       # Room、本地数据模型与 Repository
-├── feature/    # 首页、比赛表单和详情页
+├── feature/    # 首页、比赛表单、详情页和轻量工具
 ├── navigation/ # 页面路由
 └── ui/         # 应用入口、公共组件与主题
 ```
@@ -48,6 +48,8 @@ app/src/main/java/com/ddupg/runtrip/
 `RacePresentation` 集中负责比赛日期、星期、距离、金额、缺省值和各类 code 的中文展示语义。Home、Detail、Form adapter 只决定布局和 full/compact 展示密度，不在本地重写文案或格式规则。
 
 首页浏览 module 集中负责日期驱动的分组投影、分段与状态筛选、快捷状态选择，以及 mutation 的保存中/失败结果。表单与详情页把保存、删除的进行中、完成和失败结果保存在各自的 `UiState`，避免导航回调丢失。`RaceRepository` 和 `DaySource` 是可替换 adapter；Compose 只渲染状态并发送用户动作。
+
+配速计算不依赖 Room 或 `RaceRepository`。距离预设、配速计算、累计分段和格式化集中在纯 Kotlin module 中；Compose 页面只持有当前路由生命周期内的输入状态，离开页面后不保存。累计分段直接按总时间和距离比例计算，不能从已经取整的展示配速反推，以保证终点时间与输入完全一致。
 
 ## 数据与变更约定
 
