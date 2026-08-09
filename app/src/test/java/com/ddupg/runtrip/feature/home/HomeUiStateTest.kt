@@ -24,13 +24,13 @@ class HomeUiStateTest {
         val upcoming = buildRaceMonthGroups(
             races = races,
             section = RaceSection.UPCOMING,
-            selectedStatus = null,
+            filter = RaceFilter(),
             today = today,
         ).flatMap { it.races }
         val history = buildRaceMonthGroups(
             races = races,
             section = RaceSection.HISTORY,
-            selectedStatus = null,
+            filter = RaceFilter(),
             today = today,
         ).flatMap { it.races }
 
@@ -40,21 +40,74 @@ class HomeUiStateTest {
     }
 
     @Test
-    fun statusFilterDoesNotChangeStoredStatus() {
+    fun statusFilterAllowsMultipleStatusesWithoutChangingStoredStatus() {
         val races = listOf(
             race("won", today.plusDays(1), RaceStatus.DRAW_WON),
             race("pending", today.plusDays(2), RaceStatus.DRAW_PENDING),
+            race("watching", today.plusDays(3), RaceStatus.WATCHING),
         )
 
         val filtered = buildRaceMonthGroups(
             races = races,
             section = RaceSection.UPCOMING,
-            selectedStatus = RaceStatus.DRAW_WON,
+            filter = RaceFilter(
+                statuses = setOf(RaceStatus.DRAW_WON, RaceStatus.DRAW_PENDING),
+            ),
             today = today,
         ).flatMap { it.races }
 
-        assertEquals(listOf("won"), filtered.map { it.id })
-        assertEquals(RaceStatus.DRAW_PENDING, races.last().status)
+        assertEquals(listOf("won", "pending"), filtered.map { it.id })
+        assertEquals(RaceStatus.WATCHING, races.last().status)
+    }
+
+    @Test
+    fun statusAndCategoryFiltersUseAndAcrossDimensions() {
+        val races = listOf(
+            race("won-marathon", today.plusDays(1), RaceStatus.DRAW_WON),
+            race("won-half", today.plusDays(2), RaceStatus.DRAW_WON).copy(
+                category = RaceCategory.HALF_MARATHON,
+            ),
+            race("pending-marathon", today.plusDays(3), RaceStatus.DRAW_PENDING),
+        )
+
+        val filtered = buildRaceMonthGroups(
+            races = races,
+            section = RaceSection.UPCOMING,
+            filter = RaceFilter(
+                statuses = setOf(RaceStatus.DRAW_WON),
+                categories = setOf(RaceCategory.MARATHON),
+            ),
+            today = today,
+        ).flatMap { it.races }
+
+        assertEquals(listOf("won-marathon"), filtered.map { it.id })
+    }
+
+    @Test
+    fun emptySelectionsDoNotRestrictResults() {
+        val races = listOf(
+            race("marathon", today.plusDays(1), RaceStatus.DRAW_WON),
+            race("half", today.plusDays(2), RaceStatus.WATCHING).copy(
+                category = RaceCategory.HALF_MARATHON,
+            ),
+        )
+
+        val filtered = buildRaceMonthGroups(
+            races = races,
+            section = RaceSection.UPCOMING,
+            filter = RaceFilter(),
+            today = today,
+        ).flatMap { it.races }
+
+        assertEquals(listOf("marathon", "half"), filtered.map { it.id })
+        assertEquals(0, RaceFilter().activeDimensionCount)
+        assertEquals(
+            2,
+            RaceFilter(
+                statuses = setOf(RaceStatus.DRAW_WON, RaceStatus.WATCHING),
+                categories = setOf(RaceCategory.MARATHON),
+            ).activeDimensionCount,
+        )
     }
 
     @Test
@@ -67,7 +120,7 @@ class HomeUiStateTest {
         val history = buildRaceMonthGroups(
             races = races,
             section = RaceSection.HISTORY,
-            selectedStatus = null,
+            filter = RaceFilter(),
             today = today,
         ).flatMap { it.races }
 
