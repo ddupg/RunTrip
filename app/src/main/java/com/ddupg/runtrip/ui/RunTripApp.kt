@@ -1,6 +1,9 @@
 package com.ddupg.runtrip.ui
 
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Build
@@ -17,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -51,6 +55,8 @@ private val topLevelDestinations = listOf(
         icon = Icons.Outlined.Build,
     ),
 )
+
+internal val RunTripBottomNavigationContentHeight = 64.dp
 
 @Composable
 fun RunTripApp() {
@@ -158,7 +164,15 @@ private fun RunTripBottomNavigation(
     currentRoute: String?,
     onNavigate: (String) -> Unit,
 ) {
-    NavigationBar {
+    val navigationBarBottomInset = WindowInsets.navigationBars
+        .asPaddingValues()
+        .calculateBottomPadding()
+
+    NavigationBar(
+        modifier = Modifier.height(
+            RunTripBottomNavigationContentHeight + navigationBarBottomInset,
+        ),
+    ) {
         topLevelDestinations.forEach { destination ->
             NavigationBarItem(
                 selected = currentRoute == destination.route,
