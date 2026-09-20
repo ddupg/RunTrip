@@ -412,18 +412,24 @@ private fun RaceFilterSheet(
                 SportType.entries.forEach { sport ->
                     val options = RacePresentation.categories(sport)
                     val allSelected = draftFilter.categories.containsAll(options)
-                    TextButton(onClick = {
-                        draftFilter = draftFilter.copy(categories =
-                            if (allSelected) draftFilter.categories - options.toSet()
-                            else draftFilter.categories + options)
-                    }) {
-                        Text("${RacePresentation.sportType(sport).text} · ${if (allSelected) "取消全选" else "全选"}")
+                    if (options.size > 1) {
+                        TextButton(onClick = {
+                            draftFilter = draftFilter.copy(
+                                categories = if (allSelected) draftFilter.categories - options.toSet()
+                                    else draftFilter.categories + options,
+                            )
+                        }) {
+                            Text("${RacePresentation.sportType(sport).text} · ${if (allSelected) "取消全选" else "全选"}")
+                        }
                     }
                     FilterOptionGroup(
                         title = RacePresentation.sportType(sport).text,
                         options = options,
                         selectedOptions = draftFilter.categories,
-                        optionLabel = { RacePresentation.category(it, RaceLabelDensity.COMPACT).text },
+                        optionLabel = {
+                            if (options.size == 1) "全部${RacePresentation.sportType(sport).text}"
+                            else RacePresentation.category(it, RaceLabelDensity.COMPACT).text
+                        },
                         onToggle = { category ->
                             draftFilter = draftFilter.copy(categories = draftFilter.categories.toggled(category))
                         },

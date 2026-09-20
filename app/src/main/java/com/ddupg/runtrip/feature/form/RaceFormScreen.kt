@@ -286,21 +286,23 @@ private fun RaceFormContent(
                 values = SportType.entries,
                 selected = draft.sportType,
                 key = SportType::code,
-                displayName = { RacePresentation.sportType(it).text },
+                displayName = { RacePresentation.sportType(it, RaceLabelDensity.FULL).text },
                 onSelected = { onDraftChange(draft.copy(sportType = it)) },
             )
         }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                ChoiceChips(
-                    label = "比赛项目",
-                    values = RacePresentation.categories(draft.sportType),
-                    selected = draft.activeSportDraft.category,
-                    key = { "${it.sportType.code}:${it.code}" },
-                    displayName = { RacePresentation.category(it, RaceLabelDensity.FULL).text },
-                    onSelected = { onDraftChange(draft.withSportDraft(draft.activeSportDraft.withCategory(it))) },
-                )
-                uiState.errors.category?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (RacePresentation.categories(draft.sportType).size > 1) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    ChoiceChips(
+                        label = "比赛项目",
+                        values = RacePresentation.categories(draft.sportType),
+                        selected = draft.activeSportDraft.category,
+                        key = { "${it.sportType.code}:${it.code}" },
+                        displayName = { RacePresentation.category(it, RaceLabelDensity.FULL).text },
+                        onSelected = { onDraftChange(draft.withSportDraft(draft.activeSportDraft.withCategory(it))) },
+                    )
+                    uiState.errors.category?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
             }
         }
         item {
@@ -316,7 +318,7 @@ private fun RaceFormContent(
             )
         }
 
-        sportFields(draft.activeSportDraft) { onDraftChange(draft.withSportDraft(it)) }
+        sportFields(draft.activeSportDraft, uiState.errors.sportFields) { onDraftChange(draft.withSportDraft(it)) }
         item { SectionDivider() }
         item { FormSectionTitle("路程", "选填") }
         item {

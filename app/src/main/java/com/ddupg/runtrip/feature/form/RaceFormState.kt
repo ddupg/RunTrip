@@ -11,13 +11,14 @@ import java.time.LocalDate
 
 data class RaceFormErrors(
     val category: String? = null,
+    val sportFields: Map<String, String> = emptyMap(),
     val name: String? = null,
     val city: String? = null,
     val travelDistance: String? = null,
     val hotelPrice: String? = null,
 ) {
     val hasErrors: Boolean
-        get() = listOf(category, name, city, travelDistance, hotelPrice).any { it != null }
+        get() = sportFields.isNotEmpty() || listOf(category, name, city, travelDistance, hotelPrice).any { it != null }
 }
 
 data class RaceDraft(
@@ -84,7 +85,8 @@ internal fun validateRaceForm(draft: RaceDraft): RaceFormValidationResult {
 
     val details = draft.activeSportDraft.toDetails()
     val errors = RaceFormErrors(
-        category = if (details == null) "请选择比赛项目" else null,
+        category = if (draft.activeSportDraft.category == null) "请选择比赛项目" else null,
+        sportFields = draft.activeSportDraft.validationErrors(),
         name = nameError,
         city = cityError,
         travelDistance = distanceError,
@@ -141,6 +143,8 @@ private fun RaceFormErrors.clearedForChanges(
     previousDraft: RaceDraft,
     updatedDraft: RaceDraft,
 ): RaceFormErrors = copy(
+    sportFields = if (previousDraft.sportType != updatedDraft.sportType) emptyMap() else
+        updatedDraft.activeSportDraft.validationErrors().filterKeys { it in sportFields },
     category = category.takeIf {
         previousDraft.sportType == updatedDraft.sportType &&
             previousDraft.activeSportDraft.category == updatedDraft.activeSportDraft.category

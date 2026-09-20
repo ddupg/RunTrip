@@ -9,6 +9,7 @@ import com.ddupg.runtrip.data.model.SportType
 import com.ddupg.runtrip.data.model.TriathlonCategory
 import com.ddupg.runtrip.data.model.TriathlonDetails
 import com.ddupg.runtrip.testing.testRace
+import com.ddupg.runtrip.data.model.TrailRunningDetails
 import java.time.DayOfWeek
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -17,6 +18,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RacePresentationTest {
+    @Test
+    fun trailShowsRaceDistanceAndElevationWithoutConfusingTravelDistance() {
+        val race = testRace(details = TrailRunningDetails(30.5, 1200), travelDistanceKm = 200.0)
+        assertEquals("越野 · 30.5 km", RacePresentation.raceProject(race, RaceLabelDensity.COMPACT).text)
+        assertEquals(listOf(SportDetailField("累计爬升", "爬升 1200 m")),
+            RacePresentation.detailFields(race.details, RaceLabelDensity.COMPACT))
+        assertEquals(listOf(SportDetailField("累计爬升", "1200 m")),
+            RacePresentation.detailFields(race.details, RaceLabelDensity.FULL))
+        assertTrue(RacePresentation.detailFields(TrailRunningDetails(30.0), RaceLabelDensity.FULL).isEmpty())
+    }
+
     @Test
     fun dateStylesShareOneChineseDateSemantic() {
         val date = LocalDate.of(2026, 11, 15)

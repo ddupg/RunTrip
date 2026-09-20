@@ -6,7 +6,7 @@ sealed interface RaceCategory {
 }
 
 enum class SportType(val code: String) {
-    ROAD_RUNNING("ROAD_RUNNING"), TRIATHLON("TRIATHLON");
+    ROAD_RUNNING("ROAD_RUNNING"), TRIATHLON("TRIATHLON"), TRAIL_RUNNING("TRAIL_RUNNING");
     companion object {
         fun fromCode(code: String): SportType = entries.first { it.code == code }
     }

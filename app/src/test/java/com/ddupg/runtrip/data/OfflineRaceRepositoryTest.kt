@@ -17,6 +17,7 @@ import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.OfflineRaceRepository
 import com.ddupg.runtrip.data.repository.RaceMutationResult
 import com.ddupg.runtrip.data.repository.RaceRepository
+import com.ddupg.runtrip.data.model.TrailRunningDetails
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -217,6 +218,43 @@ class OfflineRaceRepositoryTest {
         assertEquals(0, rowCount("triathlon_details"))
         repository.delete(id)
         assertEquals(0, rowCount("road_running_details"))
+    }
+
+    @Test
+    fun trailFieldsPersistIndependentlyAndSwitchingCleansDetails() = runTest {
+        val input = baseInput().copy(details = TrailRunningDetails(30.5, 1500), travelDistanceKm = 200.0)
+        val id = repository.create(input)
+        val saved = requireNotNull(repository.observeRace(id).first())
+        assertEquals(input.details, saved.details)
+        assertEquals(200.0, saved.travelDistanceKm)
+        repository.update(id, input.copy(details = TrailRunningDetails(50.0)))
+        assertEquals(TrailRunningDetails(50.0), repository.observeRace(id).first()?.details)
+        repository.updateStatus(id, RaceStatus.FINISHED)
+        assertEquals(TrailRunningDetails(50.0), repository.observeRace(id).first()?.details)
+        repository.update(id, baseInput().copy(details = TriathlonDetails(TriathlonCategory.SPRINT)))
+        assertEquals(0, rowCount("trail_running_details"))
+        repository.update(id, input)
+        assertEquals(0, rowCount("triathlon_details"))
+        assertEquals(1, rowCount("trail_running_details"))
+        repository.delete(id)
+        assertEquals(0, rowCount("trail_running_details"))
+    }
+
+    @Test
+    fun failedTrailWriteRollsBackExistingSportAndCommonFields() = runTest {
+        val id = repository.create(baseInput())
+        val original = repository.observeRace(id).first()
+        database.openHelper.writableDatabase.execSQL(
+            """CREATE TRIGGER reject_trail BEFORE INSERT ON trail_running_details
+               BEGIN SELECT RAISE(ABORT, 'injected trail failure'); END""",
+        )
+        val failure = runCatching {
+            repository.update(id, baseInput().copy(name = "changed", details = TrailRunningDetails(20.0, 500)))
+        }.exceptionOrNull()
+        org.junit.Assert.assertNotNull(failure)
+        assertEquals(original, repository.observeRace(id).first())
+        assertEquals(0, rowCount("trail_running_details"))
+        assertEquals(1, rowCount("road_running_details"))
     }
 
     private fun rowCount(table: String): Int =

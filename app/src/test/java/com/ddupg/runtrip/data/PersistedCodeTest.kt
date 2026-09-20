@@ -4,6 +4,7 @@ import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.SportType
 import com.ddupg.runtrip.data.model.TriathlonCategory
+import com.ddupg.runtrip.data.model.TrailRunningCategory
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.RoadRunningCategory
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
@@ -40,6 +41,13 @@ class PersistedCodeTest {
             assertTrue(storageCodePattern.matches(it.code))
             assertEquals(it, TriathlonCategory.fromCode(it.code))
         }
+    }
+
+    @Test
+    fun trailCategoryUsesStableCode() {
+        assertEquals("CUSTOM", TrailRunningCategory.CUSTOM.code)
+        assertEquals(TrailRunningCategory.CUSTOM, TrailRunningCategory.fromCode("CUSTOM"))
+        assertEquals(SportType.TRAIL_RUNNING, TrailRunningCategory.CUSTOM.sportType)
     }
 
     @Test

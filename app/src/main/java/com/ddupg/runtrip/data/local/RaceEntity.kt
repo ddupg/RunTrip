@@ -14,6 +14,8 @@ import com.ddupg.runtrip.data.model.SportType
 import com.ddupg.runtrip.data.model.TriathlonCategory
 import com.ddupg.runtrip.data.model.TriathlonDetails
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
+import com.ddupg.runtrip.data.model.TrailRunningCategory
+import com.ddupg.runtrip.data.model.TrailRunningDetails
 import java.time.LocalDate
 
 @Entity(tableName = "races")
@@ -44,7 +46,7 @@ fun RaceRecord.toDomain(): Race = with(race) {
         raceDate = LocalDate.parse(raceDate),
         details = when (SportType.fromCode(sportTypeCode)) {
             SportType.ROAD_RUNNING -> {
-                check(triathlon == null)
+                check(triathlon == null && trailRunning == null)
                 requireNotNull(roadRunning).let {
                     RoadRunningDetails(
                         category = RoadRunningCategory.fromCode(it.categoryCode),
@@ -54,8 +56,15 @@ fun RaceRecord.toDomain(): Race = with(race) {
                 }
             }
             SportType.TRIATHLON -> {
-                check(roadRunning == null)
+                check(roadRunning == null && trailRunning == null)
                 TriathlonDetails(TriathlonCategory.fromCode(requireNotNull(triathlon).categoryCode))
+            }
+            SportType.TRAIL_RUNNING -> {
+                check(roadRunning == null && triathlon == null)
+                requireNotNull(trailRunning).let {
+                    TrailRunningCategory.fromCode(it.categoryCode)
+                    TrailRunningDetails(it.distanceKm, it.elevationGainMeters)
+                }
             }
         },
         status = RaceStatus.fromCode(statusCode),
@@ -95,10 +104,14 @@ fun Race.toEntity(): RaceRecord = RaceRecord(
         RoadRunningEntity(id, it.category.code, it.caaRaceLevel?.code, it.worldAthleticsLabel?.code)
     },
     triathlon = (details as? TriathlonDetails)?.let { TriathlonEntity(id, it.category.code) },
+    trailRunning = (details as? TrailRunningDetails)?.let {
+        TrailRunningEntity(id, it.category.code, it.distanceKm, it.elevationGainMeters)
+    },
 )
 
 data class RaceRecord(
     @Embedded val race: RaceEntity,
     @Relation(parentColumn = "id", entityColumn = "raceId") val roadRunning: RoadRunningEntity?,
     @Relation(parentColumn = "id", entityColumn = "raceId") val triathlon: TriathlonEntity?,
+    @Relation(parentColumn = "id", entityColumn = "raceId") val trailRunning: TrailRunningEntity?,
 )

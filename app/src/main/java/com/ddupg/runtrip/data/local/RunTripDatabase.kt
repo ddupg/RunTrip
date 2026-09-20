@@ -6,8 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [RaceEntity::class, RoadRunningEntity::class, TriathlonEntity::class],
-    version = 3,
+    entities = [RaceEntity::class, RoadRunningEntity::class, TriathlonEntity::class, TrailRunningEntity::class],
+    version = 4,
     exportSchema = true,
 )
 abstract class RunTripDatabase : RoomDatabase() {
@@ -20,7 +20,7 @@ abstract class RunTripDatabase : RoomDatabase() {
                 RunTripDatabase::class.java,
                 "runtrip.db",
             )
-                .addMigrations(MIGRATION_2_3)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
                 .build()
     }
 }

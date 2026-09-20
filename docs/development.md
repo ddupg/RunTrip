@@ -47,11 +47,13 @@ app/src/main/java/com/ddupg/runtrip/
 
 首页浏览 module 集中负责日期驱动的分组投影、分段与状态筛选、快捷状态选择，以及 mutation 的保存中/失败结果。表单与详情页把保存、删除的进行中、完成和失败结果保存在各自的 `UiState`，避免导航回调丢失。`RaceRepository` 和 `DaySource` 是可替换 adapter；Compose 只渲染状态并发送用户动作。
 
-比赛大类通过 `SportType` 区分，`RaceDetails` 和 `RaceCategory` 是公共契约。路跑、铁三各自持有项目枚举、详情模型、`SportDraft` 实现和展示逻辑。`RaceDraft` 按大类保存编辑草稿，公共表单只编辑当前草稿；专属字段由 `SportFormFields` 分派给对应大类，首页及详情通过 `RacePresentation` 获取项目与字段投影。
+比赛大类通过 `SportType` 区分，`RaceDetails` 和 `RaceCategory` 是公共契约。路跑、铁三、越野各自持有项目枚举、详情模型、`SportDraft` 实现和展示逻辑。`RaceDraft` 按大类保存编辑草稿，公共表单只编辑当前草稿；专属字段由 `SportFormFields` 分派给对应大类，首页及详情通过 `RacePresentation` 获取项目与字段投影。
 
-Room v3 使用公共 `races` 表和一对一的 `road_running_details`、`triathlon_details` 表。主表保存大类，扩展表保存项目及专属字段；关联读取和完整保存使用事务，切换大类时删除旧详情，删除比赛时外键级联清理。DAO 的单表写入为受保护方法，只向 Repository 暴露完整记录的保存操作。
+Room v4 使用公共 `races` 表和一对一的 `road_running_details`、`triathlon_details`、`trail_running_details` 表。主表保存大类，扩展表保存项目及专属字段；关联读取和完整保存使用事务，切换大类时删除旧详情，删除比赛时外键级联清理。DAO 的单表写入为受保护方法，只向 Repository 暴露完整记录的保存操作。
 
-v2 → v3 迁移将旧记录全部归入路跑，项目及赛事等级移入路跑扩展表，保留公共字段、ID 和生命周期元数据。迁移测试使用已提交的 v2 schema 创建真实文件数据库并通过生产入口打开。个人设备升级验证完成后，可单独清理该迁移和专属测试，保留 v3 版本号。
+v2 → v3 迁移将旧记录全部归入路跑，项目及赛事等级移入路跑扩展表，保留公共字段、ID 和生命周期元数据。迁移测试使用已提交的 v2 schema 创建真实文件数据库并通过生产入口打开。个人设备升级验证完成后，可单独清理该迁移和专属测试，保留当前数据库版本号。
+
+v3 → v4 只新增越野扩展表，保留既有路跑与铁三数据，并保留 v2 起的连续迁移路径。越野使用 `CUSTOM` 项目 code，具体比赛距离和累计爬升分别存于 `distanceKm` 与 `elevationGainMeters`。越野数值校验由 `TrailRunningDraft` 负责，通过 `SportDraft.validationErrors` 向公共表单提供字段错误，公共校验不嵌入越野规则。
 
 新增运动大类时，增加该类的项目、详情、草稿、专属字段和展示实现，并在大类分派入口注册；增加对应扩展表、Room 映射和迁移。公共比赛生命周期、首页分组和筛选算法不承载具体大类规则。密封类型的穷尽检查用于提示遗漏的分派分支。
 
