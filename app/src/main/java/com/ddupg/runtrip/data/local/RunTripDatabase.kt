@@ -20,7 +20,6 @@ abstract class RunTripDatabase : RoomDatabase() {
                 RunTripDatabase::class.java,
                 "runtrip.db",
             )
-                .addMigrations(*RunTripSchemaMigrations.all.toTypedArray())
                 .build()
     }
 }
