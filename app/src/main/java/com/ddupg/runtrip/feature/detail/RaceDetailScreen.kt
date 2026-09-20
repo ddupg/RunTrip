@@ -56,12 +56,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
-import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.RoadRunningCategory
+import com.ddupg.runtrip.data.model.RoadRunningDetails
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
-import com.ddupg.runtrip.ui.components.runTripTextButtonColors
 import com.ddupg.runtrip.ui.components.RunTripRaceStatusBadge
+import com.ddupg.runtrip.ui.components.runTripTextButtonColors
 import com.ddupg.runtrip.ui.presentation.RaceDateStyle
 import com.ddupg.runtrip.ui.presentation.RaceDisplayText
 import com.ddupg.runtrip.ui.presentation.RaceLabelDensity
@@ -239,24 +240,11 @@ private fun RaceDetailContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { RaceHero(race) }
-        if (race.caaRaceLevel != null || race.worldAthleticsLabel != null) {
+        val fields = RacePresentation.detailFields(race.details, RaceLabelDensity.FULL)
+        if (fields.isNotEmpty()) {
             item {
-                DetailSection(title = "赛事等级") {
-                    race.caaRaceLevel?.let { level ->
-                        LevelDetailRow(
-                            label = "中国田协",
-                            value = RacePresentation.caaRaceLevel(level).text,
-                        )
-                    }
-                    race.worldAthleticsLabel?.let { label ->
-                        LevelDetailRow(
-                            label = "世界田联",
-                            value = RacePresentation.worldAthleticsLabel(
-                                label,
-                                RaceLabelDensity.FULL,
-                            ).text,
-                        )
-                    }
+                DetailSection(title = "赛事信息") {
+                    fields.forEach { LevelDetailRow(label = it.label, value = it.value) }
                 }
             }
         }
@@ -348,7 +336,7 @@ private fun RaceHero(race: Race) {
         Spacer(Modifier.height(4.dp))
         Text(
             text = "${race.city} · ${
-                RacePresentation.category(race.category, RaceLabelDensity.FULL).text
+                RacePresentation.raceProject(race, RaceLabelDensity.FULL).text
             }",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -466,14 +454,12 @@ private fun RaceDetailScreenPreview() {
 }
 
 private fun previewRace(): Race = Race(
+    details = RoadRunningDetails(category = RoadRunningCategory.MARATHON, caaRaceLevel = CaaRaceLevel.A1, worldAthleticsLabel = WorldAthleticsLabel.PLATINUM),
     id = "preview",
     name = "横店马拉松",
     city = "金华",
     raceDate = LocalDate.of(2026, 11, 15),
-    category = RaceCategory.MARATHON,
     status = RaceStatus.DRAW_WON,
-    caaRaceLevel = CaaRaceLevel.A1,
-    worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
     travelDistanceKm = 350.0,
     hotelBookingStatus = HotelBookingStatus.BOOKED,
     hotelName = "万豪万枫",

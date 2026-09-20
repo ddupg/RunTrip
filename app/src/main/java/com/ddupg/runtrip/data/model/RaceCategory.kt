@@ -1,17 +1,18 @@
 package com.ddupg.runtrip.data.model
 
-enum class RaceCategory(
-    val code: String,
-) {
-    MARATHON("MARATHON"),
-    HALF_MARATHON("HALF_MARATHON"),
-    TEN_K("TEN_K"),
-    OTHER("OTHER"),
-    ;
+sealed interface RaceCategory {
+    val code: String
+    val sportType: SportType
+}
 
+enum class SportType(val code: String) {
+    ROAD_RUNNING("ROAD_RUNNING"), TRIATHLON("TRIATHLON");
     companion object {
-        fun fromCode(code: String): RaceCategory =
-            entries.firstOrNull { it.code == code }
-                ?: throw IllegalArgumentException("Unknown race category code: $code")
+        fun fromCode(code: String): SportType = entries.first { it.code == code }
     }
+}
+
+sealed interface RaceDetails {
+    val category: RaceCategory
+    val sportType: SportType get() = category.sportType
 }

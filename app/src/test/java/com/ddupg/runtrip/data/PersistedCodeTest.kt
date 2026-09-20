@@ -2,8 +2,10 @@ package com.ddupg.runtrip.data
 
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
-import com.ddupg.runtrip.data.model.RaceCategory
+import com.ddupg.runtrip.data.model.SportType
+import com.ddupg.runtrip.data.model.TriathlonCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.RoadRunningCategory
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -22,9 +24,21 @@ class PersistedCodeTest {
 
     @Test
     fun categoryCodesAreStableEnglishValues() {
-        RaceCategory.entries.forEach { category ->
+        RoadRunningCategory.entries.forEach { category ->
             assertTrue(storageCodePattern.matches(category.code))
-            assertEquals(category, RaceCategory.fromCode(category.code))
+            assertEquals(category, RoadRunningCategory.fromCode(category.code))
+        }
+    }
+
+    @Test
+    fun sportAndTriathlonCodesAreStableEnglishValues() {
+        SportType.entries.forEach {
+            assertTrue(storageCodePattern.matches(it.code))
+            assertEquals(it, SportType.fromCode(it.code))
+        }
+        TriathlonCategory.entries.forEach {
+            assertTrue(storageCodePattern.matches(it.code))
+            assertEquals(it, TriathlonCategory.fromCode(it.code))
         }
     }
 

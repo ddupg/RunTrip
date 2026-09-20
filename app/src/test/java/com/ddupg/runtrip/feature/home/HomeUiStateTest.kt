@@ -3,8 +3,9 @@ package com.ddupg.runtrip.feature.home
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
-import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.RoadRunningCategory
+import com.ddupg.runtrip.data.model.RoadRunningDetails
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -65,7 +66,7 @@ class HomeUiStateTest {
         val races = listOf(
             race("won-marathon", today.plusDays(1), RaceStatus.DRAW_WON),
             race("won-half", today.plusDays(2), RaceStatus.DRAW_WON).copy(
-                category = RaceCategory.HALF_MARATHON,
+                details = RoadRunningDetails(RoadRunningCategory.HALF_MARATHON),
             ),
             race("pending-marathon", today.plusDays(3), RaceStatus.DRAW_PENDING),
         )
@@ -75,7 +76,7 @@ class HomeUiStateTest {
             section = RaceSection.UPCOMING,
             filter = RaceFilter(
                 statuses = setOf(RaceStatus.DRAW_WON),
-                categories = setOf(RaceCategory.MARATHON),
+                categories = setOf(RoadRunningCategory.MARATHON),
             ),
             today = today,
         ).flatMap { it.races }
@@ -88,7 +89,7 @@ class HomeUiStateTest {
         val races = listOf(
             race("marathon", today.plusDays(1), RaceStatus.DRAW_WON),
             race("half", today.plusDays(2), RaceStatus.WATCHING).copy(
-                category = RaceCategory.HALF_MARATHON,
+                details = RoadRunningDetails(RoadRunningCategory.HALF_MARATHON),
             ),
         )
 
@@ -105,7 +106,7 @@ class HomeUiStateTest {
             2,
             RaceFilter(
                 statuses = setOf(RaceStatus.DRAW_WON, RaceStatus.WATCHING),
-                categories = setOf(RaceCategory.MARATHON),
+                categories = setOf(RoadRunningCategory.MARATHON),
             ).activeDimensionCount,
         )
     }
@@ -130,12 +131,11 @@ class HomeUiStateTest {
     @Test
     fun timelineSummaryShowsCaaBeforeEnglishWorldAthleticsLabel() {
         val race = race("labelled", today, RaceStatus.WATCHING).copy(
-            caaRaceLevel = CaaRaceLevel.A1,
-            worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
+            details = RoadRunningDetails(RoadRunningCategory.MARATHON, CaaRaceLevel.A1, WorldAthleticsLabel.PLATINUM),
         )
 
         assertEquals(
-            "杭州 · 全马 · A1 · Platinum",
+            "杭州 · 路跑 · 全马 · A1 · Platinum",
             formatRaceTimelineSummary(race).text,
         )
     }
@@ -143,21 +143,19 @@ class HomeUiStateTest {
     @Test
     fun timelineSummaryOmitsMissingRaceLevels() {
         assertEquals(
-            "杭州 · 全马",
+            "杭州 · 路跑 · 全马",
             formatRaceTimelineSummary(race("unlabelled", today, RaceStatus.WATCHING)).text,
         )
     }
 }
 
 private fun race(id: String, date: LocalDate, status: RaceStatus): Race = Race(
+    details = RoadRunningDetails(RoadRunningCategory.MARATHON),
     id = id,
     name = id,
     city = "杭州",
     raceDate = date,
-    category = RaceCategory.MARATHON,
     status = status,
-    caaRaceLevel = null,
-    worldAthleticsLabel = null,
     travelDistanceKm = null,
     hotelBookingStatus = HotelBookingStatus.NOT_BOOKED,
     hotelName = null,

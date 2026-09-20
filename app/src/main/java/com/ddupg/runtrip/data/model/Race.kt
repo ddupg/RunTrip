@@ -7,10 +7,8 @@ data class Race(
     val name: String,
     val city: String,
     val raceDate: LocalDate,
-    val category: RaceCategory,
+    val details: RaceDetails,
     val status: RaceStatus,
-    val caaRaceLevel: CaaRaceLevel?,
-    val worldAthleticsLabel: WorldAthleticsLabel?,
     val travelDistanceKm: Double?,
     val hotelBookingStatus: HotelBookingStatus,
     val hotelName: String?,
@@ -21,16 +19,16 @@ data class Race(
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
     val recordVersion: Int,
-)
+) {
+    val category: RaceCategory get() = details.category
+}
 
 data class RaceInput(
     val name: String,
     val city: String,
     val raceDate: LocalDate,
-    val category: RaceCategory,
+    val details: RaceDetails,
     val status: RaceStatus,
-    val caaRaceLevel: CaaRaceLevel? = null,
-    val worldAthleticsLabel: WorldAthleticsLabel? = null,
     val travelDistanceKm: Double? = null,
     val hotelBookingStatus: HotelBookingStatus = HotelBookingStatus.NOT_BOOKED,
     val hotelName: String? = null,
@@ -39,6 +37,8 @@ data class RaceInput(
     val hotelNotes: String? = null,
     val raceNotes: String? = null,
 ) {
+    val category: RaceCategory get() = details.category
+
     fun validatedAndNormalized(): RaceInput {
         require(name.isNotBlank()) { "Race name is required" }
         require(city.isNotBlank()) { "Race city is required" }

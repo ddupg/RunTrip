@@ -22,9 +22,9 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -36,16 +36,16 @@ import androidx.compose.material.icons.outlined.Hotel
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -75,12 +75,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
-import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.RoadRunningCategory
+import com.ddupg.runtrip.data.model.RoadRunningDetails
+import com.ddupg.runtrip.data.model.SportType
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
-import com.ddupg.runtrip.ui.components.RunTripFilterChip
 import com.ddupg.runtrip.ui.components.RaceStatusIcon
+import com.ddupg.runtrip.ui.components.RunTripFilterChip
 import com.ddupg.runtrip.ui.components.RunTripRaceStatusBadge
 import com.ddupg.runtrip.ui.presentation.RaceLabelDensity
 import com.ddupg.runtrip.ui.presentation.RacePresentation
@@ -407,19 +409,28 @@ private fun RaceFilterSheet(
                     },
                 )
                 Spacer(Modifier.height(20.dp))
-                FilterOptionGroup(
-                    title = "比赛项目",
-                    options = RaceCategory.entries,
-                    selectedOptions = draftFilter.categories,
-                    optionLabel = {
-                        RacePresentation.category(it, RaceLabelDensity.COMPACT).text
-                    },
-                    onToggle = { category ->
-                        draftFilter = draftFilter.copy(
-                            categories = draftFilter.categories.toggled(category),
-                        )
-                    },
-                )
+                SportType.entries.forEach { sport ->
+                    val options = RacePresentation.categories(sport)
+                    val allSelected = draftFilter.categories.containsAll(options)
+                    TextButton(onClick = {
+                        draftFilter = draftFilter.copy(categories =
+                            if (allSelected) draftFilter.categories - options.toSet()
+                            else draftFilter.categories + options)
+                    }) {
+                        Text("${RacePresentation.sportType(sport).text} · ${if (allSelected) "取消全选" else "全选"}")
+                    }
+                    FilterOptionGroup(
+                        title = RacePresentation.sportType(sport).text,
+                        options = options,
+                        selectedOptions = draftFilter.categories,
+                        optionLabel = { RacePresentation.category(it, RaceLabelDensity.COMPACT).text },
+                        onToggle = { category ->
+                            draftFilter = draftFilter.copy(categories = draftFilter.categories.toggled(category))
+                        },
+                    )
+                    Spacer(Modifier.height(20.dp))
+                }
+
             }
 
             Button(
@@ -806,21 +817,14 @@ private fun QuickStatusSheet(
 internal fun formatRaceTimelineSummary(race: Race): AnnotatedString = buildAnnotatedString {
     append(race.city)
     append(" · ")
-    append(RacePresentation.category(race.category, RaceLabelDensity.COMPACT).text)
-    race.caaRaceLevel?.let { level ->
+    append(RacePresentation.raceProject(race, RaceLabelDensity.COMPACT).text)
+    RacePresentation.detailFields(race.details, RaceLabelDensity.COMPACT).forEach {
         append(" · ")
-        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
-            append(RacePresentation.caaRaceLevel(level).text)
+        if (it.emphasized) {
+            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(it.value) }
+        } else {
+            append(it.value)
         }
-    }
-    race.worldAthleticsLabel?.let { label ->
-        append(" · ")
-        append(
-            RacePresentation.worldAthleticsLabel(
-                label,
-                RaceLabelDensity.COMPACT,
-            ).text,
-        )
     }
 }
 
@@ -847,14 +851,12 @@ private fun HomeScreenPreview() {
 }
 
 private fun previewRace(): Race = Race(
+    details = RoadRunningDetails(category = RoadRunningCategory.MARATHON, caaRaceLevel = CaaRaceLevel.A1, worldAthleticsLabel = WorldAthleticsLabel.PLATINUM),
     id = "preview",
     name = "横店马拉松",
     city = "金华",
     raceDate = LocalDate.of(2026, 11, 15),
-    category = RaceCategory.MARATHON,
     status = RaceStatus.DRAW_WON,
-    caaRaceLevel = CaaRaceLevel.A1,
-    worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
     travelDistanceKm = 350.0,
     hotelBookingStatus = HotelBookingStatus.BOOKED,
     hotelName = "万豪万枫",

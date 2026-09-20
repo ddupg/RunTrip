@@ -1,12 +1,12 @@
 package com.ddupg.runtrip.testing
 
-import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
-import com.ddupg.runtrip.data.model.RaceCategory
+import com.ddupg.runtrip.data.model.RaceDetails
 import com.ddupg.runtrip.data.model.RaceInput
 import com.ddupg.runtrip.data.model.RaceStatus
-import com.ddupg.runtrip.data.model.WorldAthleticsLabel
+import com.ddupg.runtrip.data.model.RoadRunningCategory
+import com.ddupg.runtrip.data.model.RoadRunningDetails
 import com.ddupg.runtrip.data.repository.RaceMutationResult
 import com.ddupg.runtrip.data.repository.RaceRepository
 import java.time.LocalDate
@@ -138,10 +138,8 @@ internal fun testRace(
     name: String = id,
     city: String = "金华",
     raceDate: LocalDate = LocalDate.of(2026, 11, 15),
-    category: RaceCategory = RaceCategory.MARATHON,
+    details: RaceDetails = RoadRunningDetails(RoadRunningCategory.MARATHON),
     status: RaceStatus = RaceStatus.DRAW_PENDING,
-    caaRaceLevel: CaaRaceLevel? = null,
-    worldAthleticsLabel: WorldAthleticsLabel? = null,
     travelDistanceKm: Double? = null,
     hotelBookingStatus: HotelBookingStatus = HotelBookingStatus.NOT_BOOKED,
     hotelName: String? = null,
@@ -153,14 +151,12 @@ internal fun testRace(
     updatedAtEpochMillis: Long = 1_000,
     recordVersion: Int = 1,
 ): Race = Race(
+    details = details,
     id = id,
     name = name,
     city = city,
     raceDate = raceDate,
-    category = category,
     status = status,
-    caaRaceLevel = caaRaceLevel,
-    worldAthleticsLabel = worldAthleticsLabel,
     travelDistanceKm = travelDistanceKm,
     hotelBookingStatus = hotelBookingStatus,
     hotelName = hotelName,
@@ -178,10 +174,8 @@ private fun RaceInput.toTestRace(id: String): Race = testRace(
     name = name,
     city = city,
     raceDate = raceDate,
-    category = category,
+    details = details,
     status = status,
-    caaRaceLevel = caaRaceLevel,
-    worldAthleticsLabel = worldAthleticsLabel,
     travelDistanceKm = travelDistanceKm,
     hotelBookingStatus = hotelBookingStatus,
     hotelName = hotelName,

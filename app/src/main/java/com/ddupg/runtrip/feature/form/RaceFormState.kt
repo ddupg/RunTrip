@@ -1,33 +1,34 @@
 package com.ddupg.runtrip.feature.form
 
-import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
-import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceInput
 import com.ddupg.runtrip.data.model.RaceStatus
-import com.ddupg.runtrip.data.model.WorldAthleticsLabel
+import com.ddupg.runtrip.data.model.RoadRunningCategory
+import com.ddupg.runtrip.data.model.SportType
 import java.math.BigDecimal
 import java.time.LocalDate
 
 data class RaceFormErrors(
+    val category: String? = null,
     val name: String? = null,
     val city: String? = null,
     val travelDistance: String? = null,
     val hotelPrice: String? = null,
 ) {
     val hasErrors: Boolean
-        get() = listOf(name, city, travelDistance, hotelPrice).any { it != null }
+        get() = listOf(category, name, city, travelDistance, hotelPrice).any { it != null }
 }
 
 data class RaceDraft(
     val name: String = "",
     val city: String = "",
     val raceDate: LocalDate = LocalDate.now(),
-    val category: RaceCategory = RaceCategory.MARATHON,
+    val sportType: SportType = SportType.ROAD_RUNNING,
+    val sportDrafts: Map<SportType, SportDraft> = mapOf(
+        SportType.ROAD_RUNNING to RoadRunningDraft(RoadRunningCategory.HALF_MARATHON),
+    ),
     val status: RaceStatus = RaceStatus.WATCHING,
-    val caaRaceLevel: CaaRaceLevel? = null,
-    val worldAthleticsLabel: WorldAthleticsLabel? = null,
     val travelDistance: String = "",
     val hotelBookingStatus: HotelBookingStatus = HotelBookingStatus.NOT_BOOKED,
     val hotelName: String = "",
@@ -35,7 +36,14 @@ data class RaceDraft(
     val hotelPrice: String = "",
     val hotelNotes: String = "",
     val raceNotes: String = "",
-)
+) {
+    val activeSportDraft: SportDraft get() = sportDrafts[sportType] ?: sportType.emptyDraft()
+
+    fun withSportDraft(value: SportDraft): RaceDraft {
+        require(value.sportType == sportType)
+        return copy(sportDrafts = sportDrafts + (sportType to value))
+    }
+}
 
 data class RaceFormUiState(
     val draft: RaceDraft = RaceDraft(),
@@ -74,7 +82,9 @@ internal fun validateRaceForm(draft: RaceDraft): RaceFormValidationResult {
         else -> null
     }
 
+    val details = draft.activeSportDraft.toDetails()
     val errors = RaceFormErrors(
+        category = if (details == null) "请选择比赛项目" else null,
         name = nameError,
         city = cityError,
         travelDistance = distanceError,
@@ -86,13 +96,11 @@ internal fun validateRaceForm(draft: RaceDraft): RaceFormValidationResult {
 
     return RaceFormValidationResult(
         input = RaceInput(
+            details = requireNotNull(details),
             name = draft.name,
             city = draft.city,
             raceDate = draft.raceDate,
-            category = draft.category,
             status = draft.status,
-            caaRaceLevel = draft.caaRaceLevel,
-            worldAthleticsLabel = draft.worldAthleticsLabel,
             travelDistanceKm = distance,
             hotelBookingStatus = draft.hotelBookingStatus,
             hotelName = draft.hotelName,
@@ -115,10 +123,9 @@ internal fun Race.toDraft(): RaceDraft = RaceDraft(
     name = name,
     city = city,
     raceDate = raceDate,
-    category = category,
+    sportType = details.sportType,
+    sportDrafts = mapOf(details.sportType to details.toDraft()),
     status = status,
-    caaRaceLevel = caaRaceLevel,
-    worldAthleticsLabel = worldAthleticsLabel,
     travelDistance = travelDistanceKm?.toPlainString().orEmpty(),
     hotelBookingStatus = hotelBookingStatus,
     hotelName = hotelName.orEmpty(),
@@ -134,6 +141,10 @@ private fun RaceFormErrors.clearedForChanges(
     previousDraft: RaceDraft,
     updatedDraft: RaceDraft,
 ): RaceFormErrors = copy(
+    category = category.takeIf {
+        previousDraft.sportType == updatedDraft.sportType &&
+            previousDraft.activeSportDraft.category == updatedDraft.activeSportDraft.category
+    },
     name = name.takeIf { previousDraft.name == updatedDraft.name },
     city = city.takeIf { previousDraft.city == updatedDraft.city },
     travelDistance = travelDistance.takeIf {
