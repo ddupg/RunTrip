@@ -5,8 +5,9 @@ import com.ddupg.runtrip.data.local.toEntity
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
-import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.RoadRunningCategory
+import com.ddupg.runtrip.data.model.RoadRunningDetails
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -16,14 +17,12 @@ class RaceEntityTest {
     @Test
     fun entityUsesIsoDateAndEnglishCodes() {
         val race = Race(
+            details = RoadRunningDetails(category = RoadRunningCategory.MARATHON, caaRaceLevel = CaaRaceLevel.A1, worldAthleticsLabel = WorldAthleticsLabel.PLATINUM),
             id = "89c79d5b-8d77-431b-a38b-1a1c9e629902",
             name = "横店马拉松",
             city = "金华",
             raceDate = LocalDate.of(2026, 11, 15),
-            category = RaceCategory.MARATHON,
             status = RaceStatus.DRAW_WON,
-            caaRaceLevel = CaaRaceLevel.A1,
-            worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
             travelDistanceKm = 350.0,
             hotelBookingStatus = HotelBookingStatus.BOOKED,
             hotelName = "万豪万枫",
@@ -38,12 +37,12 @@ class RaceEntityTest {
 
         val entity = race.toEntity()
 
-        assertEquals("2026-11-15", entity.raceDate)
-        assertEquals("MARATHON", entity.categoryCode)
-        assertEquals("DRAW_WON", entity.statusCode)
-        assertEquals("A1", entity.caaRaceLevelCode)
-        assertEquals("PLATINUM", entity.worldAthleticsLabelCode)
-        assertEquals("BOOKED", entity.hotelBookingStatusCode)
+        assertEquals("2026-11-15", entity.race.raceDate)
+        assertEquals("MARATHON", entity.roadRunning?.categoryCode)
+        assertEquals("DRAW_WON", entity.race.statusCode)
+        assertEquals("A1", entity.roadRunning?.caaRaceLevelCode)
+        assertEquals("PLATINUM", entity.roadRunning?.worldAthleticsLabelCode)
+        assertEquals("BOOKED", entity.race.hotelBookingStatusCode)
         assertEquals(race, entity.toDomain())
     }
 }

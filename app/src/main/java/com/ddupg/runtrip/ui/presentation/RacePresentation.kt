@@ -2,8 +2,15 @@ package com.ddupg.runtrip.ui.presentation
 
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
+import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
+import com.ddupg.runtrip.data.model.RaceDetails
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.RoadRunningCategory
+import com.ddupg.runtrip.data.model.RoadRunningDetails
+import com.ddupg.runtrip.data.model.SportType
+import com.ddupg.runtrip.data.model.TriathlonCategory
+import com.ddupg.runtrip.data.model.TriathlonDetails
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import java.math.BigDecimal
 import java.time.DayOfWeek
@@ -25,6 +32,14 @@ data class RaceDisplayText(
 )
 
 object RacePresentation {
+    fun sportType(type: SportType): RaceDisplayText = RaceDisplayText(when (type) {
+        SportType.ROAD_RUNNING -> "路跑"
+        SportType.TRIATHLON -> "铁三"
+    })
+
+    fun raceProject(race: Race, density: RaceLabelDensity): RaceDisplayText =
+        RaceDisplayText("${sportType(race.details.sportType).text} · ${category(race.category, density).text}")
+
     fun date(date: LocalDate, style: RaceDateStyle): RaceDisplayText {
         val dateText =
             "${date.year} 年 ${date.monthValue.toString().padStart(2, '0')} 月 " +
@@ -69,26 +84,21 @@ object RacePresentation {
         isPlaceholder = true,
     )
 
-    fun category(
-        category: RaceCategory,
-        density: RaceLabelDensity,
-    ): RaceDisplayText = RaceDisplayText(
-        text = when (density) {
-            RaceLabelDensity.FULL -> when (category) {
-                RaceCategory.MARATHON -> "全程马拉松"
-                RaceCategory.HALF_MARATHON -> "半程马拉松"
-                RaceCategory.TEN_K -> "10 公里"
-                RaceCategory.OTHER -> "其他"
-            }
+    fun categories(type: SportType): List<RaceCategory> = when (type) {
+        SportType.ROAD_RUNNING -> RoadRunningCategory.entries
+        SportType.TRIATHLON -> TriathlonCategory.entries
+    }
 
-            RaceLabelDensity.COMPACT -> when (category) {
-                RaceCategory.MARATHON -> "全马"
-                RaceCategory.HALF_MARATHON -> "半马"
-                RaceCategory.TEN_K -> "10 公里"
-                RaceCategory.OTHER -> "其他"
-            }
-        },
-    )
+    fun category(category: RaceCategory, density: RaceLabelDensity): RaceDisplayText =
+        RaceDisplayText(when (category) {
+            is RoadRunningCategory -> RoadRunningPresentation.category(category, density)
+            is TriathlonCategory -> TriathlonPresentation.category(category)
+        })
+
+    fun detailFields(details: RaceDetails, density: RaceLabelDensity): List<SportDetailField> = when (details) {
+        is RoadRunningDetails -> RoadRunningPresentation.fields(details, density)
+        is TriathlonDetails -> emptyList()
+    }
 
     fun status(status: RaceStatus): RaceDisplayText = RaceDisplayText(
         text = when (status) {

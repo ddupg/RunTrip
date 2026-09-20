@@ -50,11 +50,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
-import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
-import com.ddupg.runtrip.data.model.WorldAthleticsLabel
+import com.ddupg.runtrip.data.model.SportType
 import com.ddupg.runtrip.data.repository.RaceRepository
 import com.ddupg.runtrip.ui.components.RunTripControlTheme
 import com.ddupg.runtrip.ui.components.RunTripFilterChip
@@ -284,17 +282,26 @@ private fun RaceFormContent(
         }
         item {
             ChoiceChips(
-                label = "比赛项目",
-                values = RaceCategory.entries,
-                selected = draft.category,
-                key = RaceCategory::code,
-                displayName = {
-                    RacePresentation.category(it, RaceLabelDensity.FULL).text
-                },
-                onSelected = { value ->
-                    onDraftChange(draft.copy(category = value))
-                },
+                label = "运动大类",
+                values = SportType.entries,
+                selected = draft.sportType,
+                key = SportType::code,
+                displayName = { RacePresentation.sportType(it).text },
+                onSelected = { onDraftChange(draft.copy(sportType = it)) },
             )
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                ChoiceChips(
+                    label = "比赛项目",
+                    values = RacePresentation.categories(draft.sportType),
+                    selected = draft.activeSportDraft.category,
+                    key = { "${it.sportType.code}:${it.code}" },
+                    displayName = { RacePresentation.category(it, RaceLabelDensity.FULL).text },
+                    onSelected = { onDraftChange(draft.withSportDraft(draft.activeSportDraft.withCategory(it))) },
+                )
+                uiState.errors.category?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
         }
         item {
             ChoiceChips(
@@ -309,38 +316,7 @@ private fun RaceFormContent(
             )
         }
 
-        item { SectionDivider() }
-        item { FormSectionTitle("赛事等级", "选填") }
-        item {
-            OptionalChoiceChips(
-                label = "中国田协等级",
-                values = CaaRaceLevel.entries,
-                selected = draft.caaRaceLevel,
-                key = CaaRaceLevel::code,
-                displayName = { RacePresentation.caaRaceLevel(it).text },
-                onSelected = { value ->
-                    onDraftChange(draft.copy(caaRaceLevel = value))
-                },
-            )
-        }
-        item {
-            OptionalChoiceChips(
-                label = "World Athletics Label",
-                values = WorldAthleticsLabel.entries,
-                selected = draft.worldAthleticsLabel,
-                key = WorldAthleticsLabel::code,
-                displayName = {
-                    RacePresentation.worldAthleticsLabel(
-                        it,
-                        RaceLabelDensity.FULL,
-                    ).text
-                },
-                onSelected = { value ->
-                    onDraftChange(draft.copy(worldAthleticsLabel = value))
-                },
-            )
-        }
-
+        sportFields(draft.activeSportDraft) { onDraftChange(draft.withSportDraft(it)) }
         item { SectionDivider() }
         item { FormSectionTitle("路程", "选填") }
         item {
@@ -469,7 +445,7 @@ private fun RaceFormContent(
 }
 
 @Composable
-private fun FormSectionTitle(title: String, hint: String) {
+internal fun FormSectionTitle(title: String, hint: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -489,7 +465,7 @@ private fun FormSectionTitle(title: String, hint: String) {
 }
 
 @Composable
-private fun SectionDivider() {
+internal fun SectionDivider() {
     Column {
         Spacer(Modifier.height(8.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -498,10 +474,10 @@ private fun SectionDivider() {
 }
 
 @Composable
-private fun <T> ChoiceChips(
+internal fun <T> ChoiceChips(
     label: String,
     values: List<T>,
-    selected: T,
+    selected: T?,
     key: (T) -> String,
     displayName: (T) -> String,
     onSelected: (T) -> Unit,
@@ -525,7 +501,7 @@ private fun <T> ChoiceChips(
 }
 
 @Composable
-private fun <T> OptionalChoiceChips(
+internal fun <T> OptionalChoiceChips(
     label: String,
     values: List<T>,
     selected: T?,

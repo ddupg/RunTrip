@@ -2,9 +2,13 @@ package com.ddupg.runtrip.ui.presentation
 
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
-import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.RoadRunningCategory
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
+import com.ddupg.runtrip.data.model.SportType
+import com.ddupg.runtrip.data.model.TriathlonCategory
+import com.ddupg.runtrip.data.model.TriathlonDetails
+import com.ddupg.runtrip.testing.testRace
 import java.time.DayOfWeek
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -70,16 +74,27 @@ class RacePresentationTest {
     fun categoryLabelsSupportFullAndCompactAdapters() {
         assertEquals(
             listOf("全程马拉松", "半程马拉松", "10 公里", "其他"),
-            RaceCategory.entries.map {
+            RoadRunningCategory.entries.map {
                 RacePresentation.category(it, RaceLabelDensity.FULL).text
             },
         )
         assertEquals(
             listOf("全马", "半马", "10 公里", "其他"),
-            RaceCategory.entries.map {
+            RoadRunningCategory.entries.map {
                 RacePresentation.category(it, RaceLabelDensity.COMPACT).text
             },
         )
+    }
+
+    @Test
+    fun triathlonPresentationIncludesSportAndOnlyItsOwnFields() {
+        val race = testRace(details = TriathlonDetails(TriathlonCategory.SPRINT))
+        assertEquals("铁三 · 半标", RacePresentation.raceProject(race, RaceLabelDensity.FULL).text)
+        assertEquals(listOf("半标", "全标", "其他"),
+            RacePresentation.categories(SportType.TRIATHLON).map {
+                RacePresentation.category(it, RaceLabelDensity.COMPACT).text
+            })
+        assertTrue(RacePresentation.detailFields(race.details, RaceLabelDensity.FULL).isEmpty())
     }
 
     @Test

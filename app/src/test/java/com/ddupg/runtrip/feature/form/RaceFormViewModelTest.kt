@@ -3,8 +3,10 @@ package com.ddupg.runtrip.feature.form
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
-import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.RoadRunningCategory
+import com.ddupg.runtrip.data.model.RoadRunningDetails
+import com.ddupg.runtrip.data.model.SportType
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceMutationResult
 import com.ddupg.runtrip.testing.TestRaceRepository
@@ -63,8 +65,9 @@ class RaceFormViewModelTest {
         val viewModel = RaceFormViewModel(repository, raceId = null)
         viewModel.updateDraft(
             validDraft().copy(
-                caaRaceLevel = CaaRaceLevel.A1,
-                worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
+                sportDrafts = mapOf(SportType.ROAD_RUNNING to RoadRunningDraft(
+                    RoadRunningCategory.MARATHON, CaaRaceLevel.A1, WorldAthleticsLabel.PLATINUM,
+                )),
                 travelDistance = "350.5",
                 hotelPrice = "350.50",
             ),
@@ -75,8 +78,8 @@ class RaceFormViewModelTest {
 
         val createdInput = repository.createdInputs.single()
         assertEquals("横店马拉松", createdInput.name)
-        assertEquals(CaaRaceLevel.A1, createdInput.caaRaceLevel)
-        assertEquals(WorldAthleticsLabel.PLATINUM, createdInput.worldAthleticsLabel)
+        assertEquals(CaaRaceLevel.A1, (createdInput.details as RoadRunningDetails).caaRaceLevel)
+        assertEquals(WorldAthleticsLabel.PLATINUM, (createdInput.details as RoadRunningDetails).worldAthleticsLabel)
         assertEquals(350.5, createdInput.travelDistanceKm)
         assertEquals(35_050L, createdInput.hotelTotalPriceCents)
         assertTrue(viewModel.uiState.value.isSaveComplete)
@@ -92,8 +95,8 @@ class RaceFormViewModelTest {
         val loadedState = viewModel.uiState.value
         assertFalse(loadedState.isLoading)
         assertEquals("横店马拉松", loadedState.draft.name)
-        assertEquals(CaaRaceLevel.A1, loadedState.draft.caaRaceLevel)
-        assertEquals(WorldAthleticsLabel.PLATINUM, loadedState.draft.worldAthleticsLabel)
+        assertEquals(CaaRaceLevel.A1, (loadedState.draft.activeSportDraft as RoadRunningDraft).caaRaceLevel)
+        assertEquals(WorldAthleticsLabel.PLATINUM, (loadedState.draft.activeSportDraft as RoadRunningDraft).worldAthleticsLabel)
         assertEquals("350.5", loadedState.draft.travelDistance)
         assertEquals("350.5", loadedState.draft.hotelPrice)
 
@@ -159,7 +162,7 @@ class RaceFormViewModelTest {
         name = "横店马拉松",
         city = "金华",
         raceDate = LocalDate.of(2026, 11, 15),
-        category = RaceCategory.MARATHON,
+        sportDrafts = mapOf(SportType.ROAD_RUNNING to RoadRunningDraft(RoadRunningCategory.MARATHON)),
         status = RaceStatus.DRAW_WON,
         hotelBookingStatus = HotelBookingStatus.BOOKED,
     )
@@ -169,10 +172,8 @@ class RaceFormViewModelTest {
         name = "横店马拉松",
         city = "金华",
         raceDate = LocalDate.of(2026, 11, 15),
-        category = RaceCategory.MARATHON,
+        details = RoadRunningDetails(RoadRunningCategory.MARATHON, CaaRaceLevel.A1, WorldAthleticsLabel.PLATINUM),
         status = RaceStatus.DRAW_WON,
-        caaRaceLevel = CaaRaceLevel.A1,
-        worldAthleticsLabel = WorldAthleticsLabel.PLATINUM,
         travelDistanceKm = 350.5,
         hotelBookingStatus = HotelBookingStatus.BOOKED,
         hotelName = "万豪万枫",

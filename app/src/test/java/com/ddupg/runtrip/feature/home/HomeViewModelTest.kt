@@ -1,8 +1,9 @@
 package com.ddupg.runtrip.feature.home
 
 import com.ddupg.runtrip.data.model.Race
-import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceStatus
+import com.ddupg.runtrip.data.model.RoadRunningCategory
+import com.ddupg.runtrip.data.model.RoadRunningDetails
 import com.ddupg.runtrip.data.repository.RaceMutationResult
 import com.ddupg.runtrip.testing.TestRaceRepository
 import com.ddupg.runtrip.testing.testRace
@@ -77,7 +78,7 @@ class HomeViewModelTest {
             listOf(
                 race(id = "upcoming-marathon", date = today.plusDays(1)),
                 race(id = "upcoming-half", date = today.plusDays(2)).copy(
-                    category = RaceCategory.HALF_MARATHON,
+                    details = RoadRunningDetails(RoadRunningCategory.HALF_MARATHON),
                 ),
                 race(id = "history-marathon", date = today.minusDays(1)),
             ),
@@ -86,7 +87,7 @@ class HomeViewModelTest {
         startCollecting(viewModel)
         advanceUntilIdle()
 
-        val filter = RaceFilter(categories = setOf(RaceCategory.MARATHON))
+        val filter = RaceFilter(categories = setOf(RoadRunningCategory.MARATHON))
         viewModel.applyFilter(filter)
         advanceUntilIdle()
 
