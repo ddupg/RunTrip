@@ -33,6 +33,12 @@ abstract class RaceDao {
     @Upsert
     protected abstract suspend fun upsertTriathlon(details: TriathlonEntity)
 
+    @Upsert
+    protected abstract suspend fun upsertTrailRunning(details: TrailRunningEntity)
+
+    @Query("DELETE FROM trail_running_details WHERE raceId = :id")
+    protected abstract suspend fun deleteTrailRunning(id: String)
+
     @Query("DELETE FROM road_running_details WHERE raceId = :id")
     protected abstract suspend fun deleteRoadRunning(id: String)
 
@@ -57,8 +63,10 @@ abstract class RaceDao {
     private suspend fun replaceDetails(record: RaceRecord) {
         deleteRoadRunning(record.race.id)
         deleteTriathlon(record.race.id)
+        deleteTrailRunning(record.race.id)
         record.roadRunning?.let { upsertRoadRunning(it) }
         record.triathlon?.let { upsertTriathlon(it) }
+        record.trailRunning?.let { upsertTrailRunning(it) }
     }
 
     @Query(

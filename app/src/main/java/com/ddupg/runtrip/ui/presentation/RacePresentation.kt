@@ -11,6 +11,8 @@ import com.ddupg.runtrip.data.model.RoadRunningDetails
 import com.ddupg.runtrip.data.model.SportType
 import com.ddupg.runtrip.data.model.TriathlonCategory
 import com.ddupg.runtrip.data.model.TriathlonDetails
+import com.ddupg.runtrip.data.model.TrailRunningDetails
+import com.ddupg.runtrip.data.model.TrailRunningCategory
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import java.math.BigDecimal
 import java.time.DayOfWeek
@@ -32,13 +34,17 @@ data class RaceDisplayText(
 )
 
 object RacePresentation {
-    fun sportType(type: SportType): RaceDisplayText = RaceDisplayText(when (type) {
+    fun sportType(type: SportType, density: RaceLabelDensity = RaceLabelDensity.COMPACT): RaceDisplayText = RaceDisplayText(when (type) {
         SportType.ROAD_RUNNING -> "路跑"
         SportType.TRIATHLON -> "铁三"
+        SportType.TRAIL_RUNNING -> if (density == RaceLabelDensity.FULL) "越野跑" else "越野"
     })
 
     fun raceProject(race: Race, density: RaceLabelDensity): RaceDisplayText =
-        RaceDisplayText("${sportType(race.details.sportType).text} · ${category(race.category, density).text}")
+        RaceDisplayText("${sportType(race.details.sportType).text} · ${when (val details = race.details) {
+            is TrailRunningDetails -> distance(details.distanceKm).text
+            else -> category(details.category, density).text
+        }}")
 
     fun date(date: LocalDate, style: RaceDateStyle): RaceDisplayText {
         val dateText =
@@ -87,17 +93,20 @@ object RacePresentation {
     fun categories(type: SportType): List<RaceCategory> = when (type) {
         SportType.ROAD_RUNNING -> RoadRunningCategory.entries
         SportType.TRIATHLON -> TriathlonCategory.entries
+        SportType.TRAIL_RUNNING -> TrailRunningCategory.entries
     }
 
     fun category(category: RaceCategory, density: RaceLabelDensity): RaceDisplayText =
         RaceDisplayText(when (category) {
             is RoadRunningCategory -> RoadRunningPresentation.category(category, density)
             is TriathlonCategory -> TriathlonPresentation.category(category)
+            is TrailRunningCategory -> "自定义距离"
         })
 
     fun detailFields(details: RaceDetails, density: RaceLabelDensity): List<SportDetailField> = when (details) {
         is RoadRunningDetails -> RoadRunningPresentation.fields(details, density)
         is TriathlonDetails -> emptyList()
+        is TrailRunningDetails -> TrailRunningPresentation.fields(details, density)
     }
 
     fun status(status: RaceStatus): RaceDisplayText = RaceDisplayText(

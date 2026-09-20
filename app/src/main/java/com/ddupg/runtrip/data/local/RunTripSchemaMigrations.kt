@@ -100,3 +100,20 @@ internal val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("DROP TABLE legacy_road_details")
     }
 }
+
+internal val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE trail_running_details (
+                `raceId` TEXT NOT NULL,
+                `categoryCode` TEXT NOT NULL,
+                `distanceKm` REAL NOT NULL,
+                `elevationGainMeters` INTEGER,
+                PRIMARY KEY(`raceId`),
+                FOREIGN KEY(`raceId`) REFERENCES `races`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+    }
+}

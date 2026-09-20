@@ -1,0 +1,247 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "0d3b28ce8c626cdfde2add0fa85c24fe",
+    "entities": [
+      {
+        "tableName": "races",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `city` TEXT NOT NULL, `raceDate` TEXT NOT NULL, `sportTypeCode` TEXT NOT NULL, `statusCode` TEXT NOT NULL, `travelDistanceKm` REAL, `hotelBookingStatusCode` TEXT NOT NULL, `hotelName` TEXT, `bookingPlatform` TEXT, `hotelTotalPriceCents` INTEGER, `hotelNotes` TEXT, `raceNotes` TEXT, `createdAtEpochMillis` INTEGER NOT NULL, `updatedAtEpochMillis` INTEGER NOT NULL, `recordVersion` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "city",
+            "columnName": "city",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "raceDate",
+            "columnName": "raceDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sportTypeCode",
+            "columnName": "sportTypeCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "statusCode",
+            "columnName": "statusCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "travelDistanceKm",
+            "columnName": "travelDistanceKm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "hotelBookingStatusCode",
+            "columnName": "hotelBookingStatusCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hotelName",
+            "columnName": "hotelName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "bookingPlatform",
+            "columnName": "bookingPlatform",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "hotelTotalPriceCents",
+            "columnName": "hotelTotalPriceCents",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "hotelNotes",
+            "columnName": "hotelNotes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "raceNotes",
+            "columnName": "raceNotes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updatedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordVersion",
+            "columnName": "recordVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "road_running_details",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`raceId` TEXT NOT NULL, `categoryCode` TEXT NOT NULL, `caaRaceLevelCode` TEXT, `worldAthleticsLabelCode` TEXT, PRIMARY KEY(`raceId`), FOREIGN KEY(`raceId`) REFERENCES `races`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "raceId",
+            "columnName": "raceId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoryCode",
+            "columnName": "categoryCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "caaRaceLevelCode",
+            "columnName": "caaRaceLevelCode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "worldAthleticsLabelCode",
+            "columnName": "worldAthleticsLabelCode",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "raceId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "races",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "raceId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "triathlon_details",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`raceId` TEXT NOT NULL, `categoryCode` TEXT NOT NULL, PRIMARY KEY(`raceId`), FOREIGN KEY(`raceId`) REFERENCES `races`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "raceId",
+            "columnName": "raceId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoryCode",
+            "columnName": "categoryCode",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "raceId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "races",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "raceId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "trail_running_details",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`raceId` TEXT NOT NULL, `categoryCode` TEXT NOT NULL, `distanceKm` REAL NOT NULL, `elevationGainMeters` INTEGER, PRIMARY KEY(`raceId`), FOREIGN KEY(`raceId`) REFERENCES `races`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "raceId",
+            "columnName": "raceId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoryCode",
+            "columnName": "categoryCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "distanceKm",
+            "columnName": "distanceKm",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "elevationGainMeters",
+            "columnName": "elevationGainMeters",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "raceId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "races",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "raceId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0d3b28ce8c626cdfde2add0fa85c24fe')"
+    ]
+  }
+}

@@ -41,7 +41,7 @@ class RunTripMigrationTest {
     }
 
     @Test
-    fun migration2To3PreservesAllProjectsAndFieldsThroughProductionOpenPath() = runTest {
+    fun migration2ToLatestPreservesAllProjectsAndFieldsThroughProductionOpenPath() = runTest {
         createVersion2Database()
 
         database = RunTripDatabase.create(context)
@@ -89,6 +89,64 @@ class RunTripMigrationTest {
         database = RunTripDatabase.create(context)
         assertEquals(3, OfflineRaceRepository(requireNotNull(database).raceDao()).observeRaces().first().size)
     }
+
+    @Test
+    fun migration3To4PreservesRoadAndTriathlonAndAllowsTrailRecords() = runTest {
+        val schemaPath = "com.ddupg.runtrip.data.local.RunTripDatabase/3.json"
+        val schema = JSONObject(requireNotNull(javaClass.classLoader?.getResourceAsStream(schemaPath))
+            .bufferedReader().use { it.readText() }).getJSONObject("database").getJSONArray("entities")
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context).name(DATABASE_NAME)
+                .callback(object : SupportSQLiteOpenHelper.Callback(3) {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        for (index in 0 until schema.length()) {
+                            val table = schema.getJSONObject(index)
+                            db.execSQL(table.getString("createSql").replace("\${TABLE_NAME}", table.getString("tableName")))
+                        }
+                    }
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = error("Unexpected upgrade")
+                }).build(),
+        )
+        val before: Map<String, List<List<String?>>>
+        try {
+            val db = helper.writableDatabase
+            listOf("road" to "ROAD_RUNNING", "tri" to "TRIATHLON").forEach { (id, sport) ->
+                db.execSQL(
+                    """INSERT INTO races (id, name, city, raceDate, sportTypeCode, statusCode,
+                       travelDistanceKm, hotelBookingStatusCode, hotelName, bookingPlatform, hotelTotalPriceCents,
+                       hotelNotes, raceNotes, createdAtEpochMillis, updatedAtEpochMillis, recordVersion)
+                       VALUES (?, '比赛', '杭州', '2026-11-15', ?, 'REGISTERED', 123.5, 'BOOKED', '酒店', '平台',
+                       12345, '酒店备注', '赛事备注', 1000, 2000, 4)""", arrayOf(id, sport),
+                )
+            }
+            db.execSQL("INSERT INTO road_running_details VALUES ('road', 'HALF_MARATHON', 'A1', 'GOLD')")
+            db.execSQL("INSERT INTO triathlon_details VALUES ('tri', 'STANDARD')")
+            before = snapshot(db)
+        } finally {
+            helper.close()
+        }
+        database = RunTripDatabase.create(context)
+        val repository = OfflineRaceRepository(requireNotNull(database).raceDao())
+        val all = repository.observeRaces().first()
+        assertEquals(before, snapshot(requireNotNull(database).openHelper.readableDatabase))
+        assertEquals(RoadRunningDetails(RoadRunningCategory.HALF_MARATHON, CaaRaceLevel.A1, WorldAthleticsLabel.GOLD), all.first { it.id == "road" }.details)
+        assertEquals(TriathlonDetails(TriathlonCategory.STANDARD), all.first { it.id == "tri" }.details)
+        val input = RaceInput("山径赛", "杭州", LocalDate.of(2026, 11, 16), TrailRunningDetails(30.5, 1200), RaceStatus.REGISTERED)
+        val id = repository.create(input)
+        assertEquals(input.details, repository.observeRace(id).first()?.details)
+        database?.close()
+        database = RunTripDatabase.create(context)
+        assertEquals(input.details, OfflineRaceRepository(requireNotNull(database).raceDao()).observeRace(id).first()?.details)
+    }
+
+    private fun snapshot(db: SupportSQLiteDatabase): Map<String, List<List<String?>>> =
+        listOf("races", "road_running_details", "triathlon_details").associateWith { table ->
+            db.query("SELECT * FROM $table ORDER BY 1").use { cursor ->
+                buildList {
+                    while (cursor.moveToNext()) add((0 until cursor.columnCount).map { cursor.getString(it) })
+                }
+            }
+        }
 
     private fun createVersion2Database() {
         val schema = JSONObject(openVersion2Schema().bufferedReader().use { it.readText() })
