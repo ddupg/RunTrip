@@ -1,9 +1,11 @@
 package com.ddupg.runtrip.feature.home
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -22,14 +24,13 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.Hotel
@@ -39,39 +40,41 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ddupg.runtrip.R
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
@@ -81,6 +84,7 @@ import com.ddupg.runtrip.data.model.RoadRunningDetails
 import com.ddupg.runtrip.data.model.SportType
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.data.repository.RaceRepository
+import com.ddupg.runtrip.feature.form.RaceFormSheetRoute
 import com.ddupg.runtrip.ui.components.RaceStatusIcon
 import com.ddupg.runtrip.ui.components.RunTripFilterChip
 import com.ddupg.runtrip.ui.components.RunTripRaceStatusBadge
@@ -93,22 +97,26 @@ import java.time.YearMonth
 @Composable
 fun HomeRoute(
     repository: RaceRepository,
-    onAddRace: () -> Unit,
     onOpenRace: (String) -> Unit,
 ) {
     val factory = remember(repository) { HomeViewModel.Factory(repository) }
     val viewModel: HomeViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showFilterSheet by remember { mutableStateOf(false) }
+    var showAddRaceSheet by rememberSaveable { mutableStateOf(false) }
 
     HomeScreen(
         uiState = uiState,
         onSelectSection = viewModel::selectSection,
         onOpenFilters = { showFilterSheet = true },
-        onAddRace = onAddRace,
+        onAddRace = { showAddRaceSheet = true },
         onOpenRace = onOpenRace,
         onQuickStatus = viewModel::openQuickStatus,
     )
+
+    if (showAddRaceSheet) {
+        RaceFormSheetRoute(repository = repository, onDismiss = { showAddRaceSheet = false })
+    }
 
     if (showFilterSheet) {
         RaceFilterSheet(
@@ -142,29 +150,22 @@ fun HomeScreen(
     onOpenRace: (String) -> Unit,
     onQuickStatus: (String) -> Unit,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
+            TopAppBar(
                 title = {
-                    HomeTitle(
-                        section = uiState.section,
-                        collapsedFraction = scrollBehavior.state.collapsedFraction,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Image(painterResource(R.drawable.ic_bib), contentDescription = null, modifier = Modifier.size(34.dp))
+                        Text("RunTrip", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
                 },
-                scrollBehavior = scrollBehavior,
+                actions = {
+                    IconButton(onClick = onAddRace) {
+                        Icon(Icons.Outlined.Add, contentDescription = "添加比赛")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddRace,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(Icons.Outlined.Add, contentDescription = "添加比赛")
-            }
         },
     ) { innerPadding ->
         if (uiState.monthGroups.isEmpty()) {
@@ -173,11 +174,9 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
             ) {
-                RaceSectionTabs(
+                HomeControls(
                     section = uiState.section,
                     onSelectSection = onSelectSection,
-                )
-                RaceFilterToolbar(
                     resultCount = 0,
                     filter = uiState.filter,
                     onOpenFilters = onOpenFilters,
@@ -206,146 +205,59 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeTitle(
-    section: RaceSection,
-    collapsedFraction: Float,
-) {
-    val collapsed = isHomeTitleCollapsed(collapsedFraction)
-    Column {
-        Text(
-            text = "RunTrip",
-            style = if (collapsed) {
-                MaterialTheme.typography.titleLarge
-            } else {
-                MaterialTheme.typography.headlineLarge
-            },
-            fontWeight = FontWeight.Black,
-            letterSpacing = (-1).sp,
-        )
-        if (!collapsed) {
-            Text(
-                text = if (section == RaceSection.UPCOMING) "下一场，从这里出发" else "走过的路，都算数",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-internal fun isHomeTitleCollapsed(collapsedFraction: Float): Boolean = collapsedFraction >= 0.5f
-
-@Composable
-private fun RaceSectionTabs(
+private fun HomeControls(
     section: RaceSection,
     onSelectSection: (RaceSection) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 20.dp, top = 12.dp, end = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        RaceSection.entries.forEach { item ->
-            val selected = item == section
-            Surface(
-                onClick = { onSelectSection(item) },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
-                color = if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-                contentColor = if (selected) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            ) {
-                Box(
-                    modifier = Modifier.padding(vertical = 11.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = item.displayName,
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun RaceFilterToolbar(
     resultCount: Int,
     filter: RaceFilter,
     onOpenFilters: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = if (filter.isActive) {
-                "筛选结果 · $resultCount 场"
-            } else {
-                "全部比赛 · $resultCount 场"
-            },
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Surface(
-            onClick = onOpenFilters,
-            shape = RoundedCornerShape(12.dp),
-            color = if (filter.isActive) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-            contentColor = if (filter.isActive) {
-                MaterialTheme.colorScheme.onSecondaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-            border = BorderStroke(
-                width = 1.dp,
-                color = if (filter.isActive) {
-                    MaterialTheme.colorScheme.tertiary
-                } else {
-                    MaterialTheme.colorScheme.outline
-                },
-            ),
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+        RaceSection.entries.forEach { item ->
+            val selected = item == section
+            Column(
+                modifier = Modifier
+                    .selectable(selected = selected, role = Role.Tab, onClick = { onSelectSection(item) })
+                    .padding(horizontal = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.FilterList,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Text("筛选", style = MaterialTheme.typography.labelLarge)
-                if (filter.isActive) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary,
-                    ) {
-                        Text(
-                            text = filter.activeDimensionCount.toString(),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
+                Box(Modifier.heightIn(min = 46.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        item.displayName,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
+                HorizontalDivider(
+                    modifier = Modifier.width(20.dp),
+                    thickness = 2.dp,
+                    color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                )
             }
         }
+        Spacer(Modifier.weight(1f))
+        TextButton(
+            onClick = onOpenFilters,
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = if (filter.isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
+        ) {
+            Icon(Icons.Outlined.FilterList, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(if (filter.isActive) "筛选 · ${filter.activeDimensionCount}" else "筛选")
+        }
+    }
+    if (filter.isActive) {
+        Text(
+            "筛选结果 · $resultCount 场",
+            modifier = Modifier.padding(start = 22.dp, top = 4.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -514,14 +426,12 @@ private fun RaceTimeline(
 ) {
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(bottom = 96.dp),
+        contentPadding = PaddingValues(bottom = 12.dp),
     ) {
         item(key = "home-controls") {
-            RaceSectionTabs(
+            HomeControls(
                 section = section,
                 onSelectSection = onSelectSection,
-            )
-            RaceFilterToolbar(
                 resultCount = monthGroups.sumOf { it.races.size },
                 filter = filter,
                 onOpenFilters = onOpenFilters,
@@ -529,7 +439,7 @@ private fun RaceTimeline(
         }
         monthGroups.forEach { group ->
             item(key = "month-${group.month}") {
-                MonthHeader(group.month)
+                MonthHeader(group.month, group.races.size)
             }
             items(group.races, key = Race::id) { race ->
                 RaceTimelineRow(
@@ -537,119 +447,84 @@ private fun RaceTimeline(
                     onClick = { onOpenRace(race.id) },
                     onQuickStatus = { onQuickStatus(race.id) },
                 )
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                )
             }
         }
     }
 }
 
 @Composable
-private fun MonthHeader(month: YearMonth) {
+private fun MonthHeader(month: YearMonth, count: Int) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.Bottom,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = month.monthValue.toString().padStart(2, '0'),
-            fontFamily = FontFamily.Monospace,
-            fontSize = 28.sp,
-            lineHeight = 28.sp,
-            fontWeight = FontWeight.Black,
-        )
-        Spacer(Modifier.width(7.dp))
-        Text(
-            text = "月",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.weight(1f))
-        Text(
-            text = month.year.toString(),
+            text = "${month.year} / ${month.monthValue.toString().padStart(2, '0')}",
             fontFamily = FontFamily.Monospace,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Spacer(Modifier.weight(1f))
+        Text("$count 场", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun RaceTimelineRow(
-    race: Race,
-    onClick: () -> Unit,
-    onQuickStatus: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.Top,
+private fun RaceTimelineRow(race: Race, onClick: () -> Unit, onQuickStatus: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 6.dp),
+        shape = RoundedCornerShape(9.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(
-            modifier = Modifier.width(56.dp),
-            horizontalAlignment = Alignment.Start,
-        ) {
-            Text(
-                text = race.raceDate.dayOfMonth.toString().padStart(2, '0'),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 30.sp,
-                lineHeight = 30.sp,
-                fontWeight = FontWeight.Black,
-            )
-            Text(
-                text = RacePresentation.weekday(race.raceDate.dayOfWeek).text,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
+        BoxWithConstraints {
+            val stackStatus = maxWidth < 330.dp || LocalDensity.current.fontScale > 1.2f
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = race.name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Icon(
-                    imageVector = Icons.Outlined.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = formatRaceTimelineSummary(race),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(7.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                RunTripRaceStatusBadge(
-                    status = race.status,
-                    onClick = onQuickStatus,
-                )
-                race.travelDistanceKm?.let { distance ->
-                    CompactMetadata(
-                        icon = { Icon(Icons.Outlined.Route, contentDescription = null) },
-                        text = RacePresentation.distance(distance).text,
+                Row(
+                    modifier = Modifier.weight(1f).clickable(onClickLabel = "查看比赛", onClick = onClick)
+                        .padding(start = 10.dp, top = 9.dp, bottom = 9.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.width(40.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            race.raceDate.dayOfMonth.toString().padStart(2, '0'),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 28.sp,
+                            lineHeight = 30.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(RacePresentation.weekday(race.raceDate.dayOfWeek).text,
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(race.name, style = MaterialTheme.typography.titleMedium)
+                        Text(formatRaceTimelineSummary(race), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CompactMetadata(
+                                icon = { Icon(Icons.Outlined.Hotel, contentDescription = null) },
+                                text = RacePresentation.hotelBookingStatus(race.hotelBookingStatus).text,
+                            )
+                            race.travelDistanceKm?.let { distance ->
+                                CompactMetadata(
+                                    icon = { Icon(Icons.Outlined.Route, contentDescription = null) },
+                                    text = RacePresentation.distance(distance).text,
+                                )
+                            }
+                        }
+                        if (stackStatus) {
+                            RunTripRaceStatusBadge(status = race.status, onClick = onQuickStatus, compact = true)
+                        }
+                    }
+                }
+                if (!stackStatus) {
+                    RunTripRaceStatusBadge(
+                        status = race.status, onClick = onQuickStatus, compact = true,
+                        modifier = Modifier.padding(end = 8.dp),
                     )
                 }
-                CompactMetadata(
-                    icon = { Icon(Icons.Outlined.Hotel, contentDescription = null) },
-                    text = RacePresentation.hotelBookingStatus(race.hotelBookingStatus).text,
-                )
             }
         }
     }
@@ -665,14 +540,14 @@ private fun CompactMetadata(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(13.dp),
             contentAlignment = Alignment.Center,
         ) {
             icon()
         }
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -706,7 +581,7 @@ private fun HomeEmptyState(
                 text = when {
                     isFilteredEmpty -> "没有符合条件的比赛"
                     section == RaceSection.HISTORY -> "还没有历史比赛"
-                    else -> "还没有比赛安排"
+                    else -> "还没有赛事记录"
                 },
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,

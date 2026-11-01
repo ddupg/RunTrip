@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -93,7 +94,6 @@ fun RunTripApp() {
                 composable(RunTripRoutes.HOME) {
                     HomeRoute(
                         repository = application.raceRepository,
-                        onAddRace = { navController.navigate(RunTripRoutes.ADD_RACE) },
                         onOpenRace = { raceId ->
                             navController.navigate(RunTripRoutes.raceDetail(raceId))
                         },
@@ -108,14 +108,6 @@ fun RunTripApp() {
                 }
                 composable(RunTripRoutes.PACE_CALCULATOR) {
                     PaceCalculatorScreen(onBack = { navController.popBackStack() })
-                }
-                composable(RunTripRoutes.ADD_RACE) {
-                    RaceFormRoute(
-                        repository = application.raceRepository,
-                        raceId = null,
-                        onBack = { navController.popBackStack() },
-                        onSaved = { navController.popBackStack() },
-                    )
                 }
                 composable(
                     route = RunTripRoutes.RACE_DETAIL_PATTERN,
@@ -169,6 +161,8 @@ private fun RunTripBottomNavigation(
         .calculateBottomPadding()
 
     NavigationBar(
+        containerColor = MaterialTheme.colorScheme.background,
+        tonalElevation = 0.dp,
         modifier = Modifier.height(
             RunTripBottomNavigationContentHeight + navigationBarBottomInset,
         ),
@@ -185,9 +179,9 @@ private fun RunTripBottomNavigation(
                 },
                 label = { Text(destination.label) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
                     selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                    indicatorColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = Color.Transparent,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),

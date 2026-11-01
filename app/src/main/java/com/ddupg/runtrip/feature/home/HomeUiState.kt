@@ -7,8 +7,8 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 enum class RaceSection(val displayName: String) {
-    UPCOMING("即将到来"),
-    HISTORY("历史"),
+    UPCOMING("未开始"),
+    HISTORY("历史赛事"),
 }
 
 data class RaceMonthGroup(

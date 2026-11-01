@@ -70,6 +70,10 @@ class RaceFormViewModelTest {
                 )),
                 travelDistance = "350.5",
                 hotelPrice = "350.50",
+                hotelName = "万豪万枫",
+                bookingPlatform = "携程",
+                hotelNotes = "靠近起点",
+                raceNotes = "赛前一天领物",
             ),
         )
 
@@ -78,6 +82,15 @@ class RaceFormViewModelTest {
 
         val createdInput = repository.createdInputs.single()
         assertEquals("横店马拉松", createdInput.name)
+        assertEquals("金华", createdInput.city)
+        assertEquals(LocalDate.of(2026, 11, 15), createdInput.raceDate)
+        assertEquals(RaceStatus.DRAW_WON, createdInput.status)
+        assertEquals(RoadRunningCategory.MARATHON, createdInput.details.category)
+        assertEquals(HotelBookingStatus.BOOKED, createdInput.hotelBookingStatus)
+        assertEquals("万豪万枫", createdInput.hotelName)
+        assertEquals("携程", createdInput.bookingPlatform)
+        assertEquals("靠近起点", createdInput.hotelNotes)
+        assertEquals("赛前一天领物", createdInput.raceNotes)
         assertEquals(CaaRaceLevel.A1, (createdInput.details as RoadRunningDetails).caaRaceLevel)
         assertEquals(WorldAthleticsLabel.PLATINUM, (createdInput.details as RoadRunningDetails).worldAthleticsLabel)
         assertEquals(350.5, createdInput.travelDistanceKm)
@@ -156,6 +169,66 @@ class RaceFormViewModelTest {
         assertEquals(1, repository.create.callCount)
         repository.create.gate?.complete(Unit)
         advanceUntilIdle()
+    }
+
+    @Test
+    fun closingNewRaceDiscardsDraftAndValidationErrors() {
+        val repository = TestRaceRepository()
+        val viewModel = RaceFormViewModel(repository, raceId = null)
+        viewModel.updateDraft(RaceDraft(name = "未保存的比赛", raceDate = LocalDate.of(2027, 3, 29)))
+        viewModel.save()
+        assertTrue(viewModel.uiState.value.errors.hasErrors)
+
+        viewModel.resetNewRace()
+
+        assertEquals(RaceFormUiState(), viewModel.uiState.value)
+        assertTrue(repository.createdInputs.isEmpty())
+    }
+
+    @Test
+    fun completedSheetCanStartAnotherRaceWithoutReusingDateOrCompletion() = runTest(testDispatcher) {
+        val repository = TestRaceRepository()
+        val viewModel = RaceFormViewModel(repository, raceId = null)
+        viewModel.updateDraft(validDraft())
+        viewModel.save()
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isSaveComplete)
+
+        viewModel.resetNewRace()
+        assertEquals(RaceFormUiState(), viewModel.uiState.value)
+        val nextDate = LocalDate.of(2027, 4, 29)
+        viewModel.updateDraft(validDraft().copy(name = "第二场记录", raceDate = nextDate))
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertEquals(2, repository.createdInputs.size)
+        assertEquals(nextDate, repository.createdInputs.last().raceDate)
+    }
+
+    @Test
+    fun closingCannotResetInFlightSave() = runTest(testDispatcher) {
+        val repository = TestRaceRepository().apply { create.gate = CompletableDeferred() }
+        val viewModel = RaceFormViewModel(repository, raceId = null)
+        viewModel.updateDraft(validDraft())
+        viewModel.save()
+        runCurrent()
+
+        viewModel.resetNewRace()
+        assertTrue(viewModel.uiState.value.isSaving)
+        assertEquals(validDraft(), viewModel.uiState.value.draft)
+        repository.create.gate?.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isSaveComplete)
+        assertEquals(1, repository.createdInputs.size)
+    }
+
+    @Test
+    fun newSheetResetDoesNotDiscardAnEdit() = runTest(testDispatcher) {
+        val viewModel = RaceFormViewModel(TestRaceRepository(listOf(existingRace())), raceId = "race-id")
+        advanceUntilIdle()
+        val loadedState = viewModel.uiState.value
+        viewModel.resetNewRace()
+        assertEquals(loadedState, viewModel.uiState.value)
     }
 
     private fun validDraft(): RaceDraft = RaceDraft(

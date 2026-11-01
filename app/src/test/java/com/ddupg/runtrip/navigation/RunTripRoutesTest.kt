@@ -11,7 +11,7 @@ class RunTripRoutesTest {
         assertTrue(RunTripRoutes.isTopLevel(RunTripRoutes.TOOLS))
 
         assertFalse(RunTripRoutes.isTopLevel(RunTripRoutes.PACE_CALCULATOR))
-        assertFalse(RunTripRoutes.isTopLevel(RunTripRoutes.ADD_RACE))
+        assertFalse(RunTripRoutes.isTopLevel(RunTripRoutes.EDIT_RACE_PATTERN))
         assertFalse(RunTripRoutes.isTopLevel(RunTripRoutes.RACE_DETAIL_PATTERN))
         assertFalse(RunTripRoutes.isTopLevel(null))
     }

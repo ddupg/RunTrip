@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -29,17 +31,22 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -100,7 +107,7 @@ fun RaceFormScreen(
     onDraftChange: (RaceDraft) -> Unit,
     onSave: () -> Unit,
 ) {
-    var showDatePicker by remember { mutableStateOf(false) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val draft = uiState.draft
 
     Scaffold(
@@ -169,46 +176,107 @@ fun RaceFormScreen(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = draft.raceDate.toUtcMillis(),
+        RaceDatePicker(
+            date = draft.raceDate,
+            onSelect = { onDraftChange(draft.copy(raceDate = it)) },
+            onDismiss = { showDatePicker = false },
         )
-        val datePickerColors = runTripDatePickerColors()
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            colors = datePickerColors,
-            confirmButton = {
-                Button(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { selectedMillis ->
-                            onDraftChange(
-                                draft.copy(
-                                    raceDate = Instant.ofEpochMilli(selectedMillis)
-                                        .atZone(ZoneOffset.UTC)
-                                        .toLocalDate(),
-                                ),
-                            )
-                        }
-                        showDatePicker = false
-                    },
-                    colors = runTripConfirmButtonColors(),
-                ) {
-                    Text("确定")
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RaceFormSheetRoute(repository: RaceRepository, onDismiss: () -> Unit) {
+    val factory = remember(repository) { RaceFormViewModel.Factory(repository, null) }
+    // Scoped to the home entry: rotation keeps the current draft; closing starts a new session.
+    val viewModel: RaceFormViewModel = viewModel(key = "new-race", factory = factory)
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val saving by rememberUpdatedState(uiState.isSaving)
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    val close = {
+        if (!saving) {
+            viewModel.resetNewRace()
+            onDismiss()
+        }
+    }
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { it != SheetValue.Hidden || !saving },
+    )
+    LaunchedEffect(uiState.isSaveComplete) {
+        if (uiState.isSaveComplete) close()
+    }
+    ModalBottomSheet(onDismissRequest = close, sheetState = sheetState) {
+        Column(Modifier.fillMaxHeight(0.92f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = close, enabled = !uiState.isSaving) {
+                    Icon(Icons.Outlined.Close, contentDescription = "取消添加")
                 }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showDatePicker = false },
-                    colors = runTripTextButtonColors(),
-                ) {
-                    Text("取消")
+                Text("添加比赛", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                TextButton(onClick = viewModel::save, enabled = !uiState.isSaving) {
+                    if (uiState.isSaving) {
+                        CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("保存")
+                    }
                 }
-            },
-        ) {
-            DatePicker(
-                state = datePickerState,
-                colors = datePickerColors,
+            }
+            RaceFormContent(
+                uiState = uiState,
+                onDraftChange = viewModel::updateDraft,
+                onOpenDatePicker = { showDatePicker = true },
+                modifier = Modifier.weight(1f),
             )
         }
+    }
+    if (showDatePicker) {
+        RaceDatePicker(
+            date = uiState.draft.raceDate,
+            onSelect = { viewModel.updateDraft(uiState.draft.copy(raceDate = it)) },
+            onDismiss = { showDatePicker = false },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RaceDatePicker(date: LocalDate, onSelect: (LocalDate) -> Unit, onDismiss: () -> Unit) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = date.toUtcMillis(),
+    )
+    val datePickerColors = runTripDatePickerColors()
+    DatePickerDialog(
+        onDismissRequest = { onDismiss() },
+        colors = datePickerColors,
+        confirmButton = {
+            Button(
+                onClick = {
+                    datePickerState.selectedDateMillis?.let { selectedMillis ->
+                        onSelect(Instant.ofEpochMilli(selectedMillis).atZone(ZoneOffset.UTC).toLocalDate())
+                    }
+                    onDismiss()
+                },
+                colors = runTripConfirmButtonColors(),
+            ) {
+                Text("确定")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { onDismiss() },
+                colors = runTripTextButtonColors(),
+            ) {
+                Text("取消")
+            }
+        },
+    ) {
+        DatePicker(
+            state = datePickerState,
+            colors = datePickerColors,
+        )
     }
 }
 
@@ -223,8 +291,8 @@ private fun RaceFormContent(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 40.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item { FormSectionTitle("比赛信息", "必填") }
         item {
