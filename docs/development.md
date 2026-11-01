@@ -39,8 +39,6 @@ app/src/main/java/com/ddupg/runtrip/
 └── ui/         # 应用入口、公共组件与主题
 ```
 
-新增表单以首页中的 `ModalBottomSheet` 承载，使用首页导航条目作用域内独立 key 的 `RaceFormViewModel`；旋转保留当前 ViewModel，取消或保存成功后显式重置新建会话。新增与编辑复用 `RaceFormContent` 和日期选择器，不改变持久化结构。
-
 比赛表单使用 `RaceDraft` 表示尚未保存的比赛草稿。比赛编辑 module 集中负责草稿转换、校验、加载和保存；Compose 只渲染状态并提交完整的草稿变化。
 
 `RaceRepository` 是比赛持久化生命周期的公开边界。`OfflineRaceRepository` 与 Room adapter 集中负责输入规范化、实体映射、创建/更新时间和 `recordVersion` 推进；修改与删除统一返回 `APPLIED` 或 `NOT_FOUND`，上层功能不直接依赖 DAO。
