@@ -27,7 +27,7 @@ Debug APK 生成在 `app/build/outputs/apk/debug/`。
 - ViewModel + Repository
 - 单 Activity 导航
 
-应用不申请网络权限。
+应用申请 `INTERNET` 权限用于用户主动发起的高驰连接、授权结果领取、令牌续期及账号昵称读取。比赛、工具与地区数据仍可离线使用。
 
 主要代码目录：
 
@@ -81,7 +81,21 @@ v3 → v4 只新增越野扩展表，保留既有路跑与铁三数据，并保�
 - 持久化生命周期测试只通过 `RaceRepository` 操作真实的内存 Room 数据库，避免 Fake DAO 复制 SQL 行为。
 - Feature ViewModel 测试统一使用 `TestRaceRepository` 控制公开 mutation 的 gate、failure 和结果；存储规范化、SQL 与 migration 不由 test adapter 模拟。
 - 行为变化需要同步测试和相关文档。
-- 保持应用为本地存储的单机应用，不引入账号、后端、联网、云同步、通知或多端能力。
+- 保持应用为本地存储的单机应用；仅按用户授权访问外部数据来源，不引入 RunTrip 自身账号、后端、云同步、通知或多端能力。
+
+### 数据来源连接
+
+- `DataSourceConnector` 是来源连接边界，提供当前连接、发起授权、完成授权和断开操作；当前仅注册高驰。来源标识使用稳定的 `coros` code，具体授权协议保留在 `data/source/coros`。
+- 高驰采用官方登录会话流程和 PKCE：创建会话后打开浏览器；「我」页面恢复到前台时检查会话，不设置自定义 URI 回跳或本机监听服务，不在后台定时轮询。
+- 当前操作尚未结束时收到的前台恢复事件会合并为一次待执行检查，在操作及状态读取完成后执行，避免浏览器返回事件被忙碌状态丢弃；没有新的恢复事件时不重复检查。
+- OAuth `/userinfo` 提供账号标识；官方 MCP 的 `queryUserInfo` 提供昵称。只提取昵称，不保存或展示其中的身高、体重等资料；此阶段不查询运动记录。账号名非空时 UI 只显示账号名。
+- 会话中间结果（ticket、code）和领取后的凭据分别保存，避免账号资料读取失败后重新领取已使用的会话。进程重建可以继续当前阶段；无法恢复的失效授权需重新连接。
+- 凭据使用 Android Keystore 的 AES-256-GCM 密钥加密，通过 `AtomicFile` 保存到 `noBackupFilesDir/data-sources`，不进入 Room、备份或日志。加密格式当前为 v1，后续格式变化须显式迁移；解密或版本校验失败不会静默重建。
+- 凭据按来源分别存储。令牌轮换成功后原子保存；`invalid_grant` 清理本地连接并要求重新授权。解除绑定清除本地凭据，不调用高驰运动写入操作。
+- 授权和账号资料实现使用 Android/JDK 与已有协程能力，无新增第三方运行时依赖。比赛 Room schema 仍为 v5，无迁移变更。
+- 单元测试覆盖 PKCE、state 校验、会话恢复、昵称、续期、解绑和加密存储；Android UI 测试位于 `feature/me/MeScreenTest.kt`，连接 Android 16 设备后运行 `./gradlew connectedDebugAndroidTest`。
+
+后续分阶段实现：第二阶段增加训练页面、本地训练记录和历史导入；第三阶段增加周/月训练量统计。它们分别交付，不加入本阶段。
 
 ## 持续集成
 
