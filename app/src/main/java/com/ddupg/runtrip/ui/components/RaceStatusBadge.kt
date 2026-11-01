@@ -1,12 +1,15 @@
 package com.ddupg.runtrip.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.CheckCircleOutline
@@ -128,8 +131,8 @@ internal fun ColorScheme.raceStatusBadgeColors(
             )
         } else {
             RaceStatusBadgeColors(
-                containerColor = secondary,
-                contentColor = onSecondary,
+                containerColor = secondaryContainer,
+                contentColor = onSecondaryContainer,
             )
         }
 
@@ -160,6 +163,7 @@ internal fun RunTripRaceStatusBadge(
     status: RaceStatus,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    compact: Boolean = false,
 ) {
     val spec = status.visualSpec()
     val colors = MaterialTheme.colorScheme.raceStatusBadgeColors(spec.style)
@@ -184,7 +188,9 @@ internal fun RunTripRaceStatusBadge(
             )
             Text(
                 text = RacePresentation.status(status).text,
-                style = if (emphasized) {
+                style = if (compact) {
+                    MaterialTheme.typography.labelSmall
+                } else if (emphasized) {
                     MaterialTheme.typography.labelLarge
                 } else {
                     MaterialTheme.typography.bodyMedium
@@ -193,26 +199,21 @@ internal fun RunTripRaceStatusBadge(
         }
     }
 
-    if (onClick == null) {
+    Box(
+        modifier = if (onClick == null) modifier else modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .clickable(onClickLabel = "更新参赛状态", onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
         Surface(
-            modifier = modifier,
-            shape = CircleShape,
-            color = colors.containerColor,
-            contentColor = colors.contentColor,
-            border = border,
-            content = content,
-        )
-    } else {
-        Surface(
-            onClick = onClick,
-            modifier = modifier,
-            shape = CircleShape,
+            shape = RoundedCornerShape(5.dp),
             color = colors.containerColor,
             contentColor = colors.contentColor,
             border = border,
             content = content,
         )
     }
+
 }
 
 @Composable

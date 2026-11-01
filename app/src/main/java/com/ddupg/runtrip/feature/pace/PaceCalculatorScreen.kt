@@ -237,7 +237,7 @@ private fun TimeInput(
         Surface(
             onClick = onClick,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(13.dp),
+            shape = RoundedCornerShape(10.dp),
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
@@ -280,13 +280,13 @@ private fun TimeInput(
 private fun EmptyCalculation() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(10.dp),
         color = Color.Transparent,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Text(
             text = "选择距离和完赛时间后显示计算结果",
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 28.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -308,7 +308,7 @@ private fun CalculationResult(
                         formatPaceContentDescription(calculation.paceSecondsPerKm)
                     }"
                 },
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(10.dp),
             color = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
         ) {
@@ -360,7 +360,7 @@ private fun SplitTable(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {

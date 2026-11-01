@@ -2,9 +2,9 @@
     <style name="Theme.RunTrip" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">#F7F8F4</item>
+        <item name="android:navigationBarColor">#F2F3F1</item>
         <item name="android:windowLightNavigationBar">true</item>
-        <item name="android:windowBackground">#F7F8F4</item>
-        <item name="android:colorAccent">#B8FF1A</item>
+        <item name="android:windowBackground">#F2F3F1</item>
+        <item name="android:colorAccent">#222A24</item>
     </style>
 </resources>

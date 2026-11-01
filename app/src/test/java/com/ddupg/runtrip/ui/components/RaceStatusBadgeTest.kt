@@ -6,11 +6,8 @@ import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.ui.theme.RunTripDarkColors
 import com.ddupg.runtrip.ui.theme.RunTripInk
 import com.ddupg.runtrip.ui.theme.RunTripLightColors
-import com.ddupg.runtrip.ui.theme.RunTripLime
 import com.ddupg.runtrip.ui.theme.RunTripLimeDark
-import com.ddupg.runtrip.ui.theme.RunTripNightVariant
 import com.ddupg.runtrip.ui.theme.RunTripOlive
-import com.ddupg.runtrip.ui.theme.RunTripPaper
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -67,17 +64,17 @@ class RaceStatusBadgeTest {
     }
 
     @Test
-    fun lightPaletteUsesBrandFillForConfirmedAndOliveForWon() {
+    fun lightPaletteUsesGraphiteForConfirmedAndSoftSurfaceForWon() {
         val confirmed = RunTripLightColors.raceStatusBadgeColors(
             RaceStatusBadgeStyle.CONFIRMED,
         )
         val won = RunTripLightColors.raceStatusBadgeColors(RaceStatusBadgeStyle.WON)
         val muted = RunTripLightColors.raceStatusBadgeColors(RaceStatusBadgeStyle.MUTED)
 
-        assertEquals(RunTripLime, confirmed.containerColor)
-        assertEquals(RunTripInk, confirmed.contentColor)
-        assertEquals(RunTripOlive, won.containerColor)
-        assertEquals(RunTripPaper, won.contentColor)
+        assertEquals(RunTripOlive, confirmed.containerColor)
+        assertEquals(Color.White, confirmed.contentColor)
+        assertEquals(RunTripLightColors.secondaryContainer, won.containerColor)
+        assertEquals(RunTripOlive, won.contentColor)
         assertEquals(Color.Transparent, muted.containerColor)
         assertEquals(null, muted.borderColor)
         assertAccessible(RunTripLightColors)
@@ -92,7 +89,7 @@ class RaceStatusBadgeTest {
 
         assertEquals(RunTripLimeDark, confirmed.containerColor)
         assertEquals(RunTripInk, confirmed.contentColor)
-        assertEquals(RunTripNightVariant, won.containerColor)
+        assertEquals(RunTripDarkColors.secondaryContainer, won.containerColor)
         assertEquals(RunTripLimeDark, won.borderColor)
         assertAccessible(RunTripDarkColors)
     }

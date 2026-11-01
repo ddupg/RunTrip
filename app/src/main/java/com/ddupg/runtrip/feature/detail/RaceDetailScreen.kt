@@ -1,5 +1,6 @@
 package com.ddupg.runtrip.feature.detail
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,11 +47,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ddupg.runtrip.data.model.CaaRaceLevel
@@ -236,7 +235,7 @@ private fun RaceDetailContent(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 40.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { RaceHero(race) }
@@ -313,13 +312,6 @@ private fun RaceDetailContent(
 private fun RaceHero(race: Race) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = race.raceDate.dayOfMonth.toString().padStart(2, '0'),
-            fontFamily = FontFamily.Monospace,
-            fontSize = 64.sp,
-            lineHeight = 64.sp,
-            fontWeight = FontWeight.Black,
-        )
-        Text(
             text = RacePresentation.date(
                 race.raceDate,
                 RaceDateStyle.WITH_WEEKDAY,
@@ -331,7 +323,7 @@ private fun RaceHero(race: Race) {
         Text(
             text = race.name,
             style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Black,
+            fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(4.dp))
         Text(
@@ -354,13 +346,14 @@ private fun DetailSection(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

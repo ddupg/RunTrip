@@ -42,6 +42,12 @@ class RaceFormViewModel(
         _uiState.update { state -> state.withDraft(draft) }
     }
 
+    fun resetNewRace() {
+        if (raceId == null && !_uiState.value.isSaving) {
+            _uiState.value = RaceFormUiState()
+        }
+    }
+
     fun save() {
         val currentState = _uiState.value
         if (currentState.isSaving || currentState.isSaveComplete) return
