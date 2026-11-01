@@ -117,3 +117,12 @@ internal val MIGRATION_3_4 = object : Migration(3, 4) {
         )
     }
 }
+
+internal val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // 旧自由文本无法可靠推断行政区；原样保留，用户重新选择后再写入结构化地点。
+        // TODO(2.0.0): 移除 city 列及兼容逻辑；发布前处理尚未重新选择地点的旧记录。
+        listOf("provinceCode", "provinceName", "cityCode", "cityName", "districtCode", "districtName", "dataVersion")
+            .forEach { field -> db.execSQL("ALTER TABLE races ADD COLUMN `location_$field` TEXT") }
+    }
+}

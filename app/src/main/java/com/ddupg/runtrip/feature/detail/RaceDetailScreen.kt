@@ -327,7 +327,7 @@ private fun RaceHero(race: Race) {
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "${race.city} · ${
+            text = "${RacePresentation.location(race).text} · ${
                 RacePresentation.raceProject(race, RaceLabelDensity.FULL).text
             }",
             style = MaterialTheme.typography.bodyLarge,

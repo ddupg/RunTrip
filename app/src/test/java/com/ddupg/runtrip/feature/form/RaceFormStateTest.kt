@@ -9,6 +9,7 @@ import com.ddupg.runtrip.data.model.SportType
 import com.ddupg.runtrip.data.model.TriathlonCategory
 import com.ddupg.runtrip.data.model.TriathlonDetails
 import com.ddupg.runtrip.data.model.WorldAthleticsLabel
+import com.ddupg.runtrip.data.model.RaceLocation
 import com.ddupg.runtrip.testing.testRace
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -17,13 +18,38 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RaceFormStateTest {
+    private val location = RaceLocation("330000", "浙江省", "330100", "杭州市", "330106", "西湖区", "9.0.0")
+
+    @Test
+    fun structuredLocationIsRequiredForNewDraftAndClearsItsValidationError() {
+        val empty = RaceDraft(name = "比赛")
+        val invalid = validateRaceForm(empty)
+        assertEquals("请选择比赛地点", invalid.errors.location)
+        val selected = empty.withLocation(location)
+        val state = RaceFormUiState(draft = empty, errors = invalid.errors).withDraft(selected)
+        assertNull(state.errors.location)
+        assertEquals(location, validateRaceForm(selected).input?.location)
+        assertEquals("", validateRaceForm(selected).input?.city)
+    }
+
+    @Test
+    fun legacyLocationIsPreservedUntilUserReplacesIt() {
+        val legacy = testRace(city = "旧的自由文本地点").toDraft()
+        assertNull(legacy.location)
+        assertEquals("旧的自由文本地点", validateRaceForm(legacy).input?.city)
+        val updated = legacy.withLocation(location)
+        assertEquals("", updated.city)
+        assertEquals(location, validateRaceForm(updated).input?.location)
+        assertEquals(location, testRace(city = "", location = location).toDraft().location)
+    }
+
     @Test
     fun requiredFieldsAreValidated() {
         val result = validateRaceForm(RaceDraft(name = " ", city = ""))
 
         assertNull(result.input)
         assertTrue(result.errors.name != null)
-        assertTrue(result.errors.city != null)
+        assertTrue(result.errors.location != null)
     }
 
     @Test

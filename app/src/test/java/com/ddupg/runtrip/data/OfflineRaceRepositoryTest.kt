@@ -8,6 +8,7 @@ import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceInput
+import com.ddupg.runtrip.data.model.RaceLocation
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.RoadRunningCategory
 import com.ddupg.runtrip.data.model.RoadRunningDetails
@@ -54,6 +55,31 @@ class OfflineRaceRepositoryTest {
     @After
     fun closeDatabase() {
         database.close()
+    }
+
+    @Test
+    fun structuredLocationReplacesLegacyAndSurvivesStatusAndSportChanges() = runTest {
+        val id = repository.create(baseInput())
+        assertEquals("金华", repository.observeRace(id).first()?.city)
+        val district = RaceLocation("330000", "浙江省", "330100", "杭州市", "330106", "西湖区", "9.0.0")
+        repository.update(id, baseInput().copy(location = district))
+        val selected = requireNotNull(repository.observeRace(id).first())
+        assertEquals("", selected.city)
+        assertEquals(district, selected.location)
+        repository.updateStatus(id, RaceStatus.REGISTERED)
+        assertEquals(district, repository.observeRace(id).first()?.location)
+
+        val city = district.copy(districtCode = null, districtName = null)
+        repository.update(id, baseInput().copy(location = city, details = TrailRunningDetails(20.0)))
+        assertEquals(city, repository.observeRace(id).first()?.location)
+        assertEquals("", repository.observeRace(id).first()?.city)
+    }
+
+    @Test
+    fun newStructuredRecordDoesNotNeedLegacyCity() = runTest {
+        val location = RaceLocation("110000", "北京市", "110000", "北京市", null, null, "9.0.0")
+        val id = repository.create(baseInput().copy(city = "", location = location))
+        assertEquals(location, repository.observeRace(id).first()?.location)
     }
 
     @Test

@@ -74,6 +74,7 @@ private fun RaceInput.toRace(
     id = id,
     name = name,
     city = city,
+    location = location,
     raceDate = raceDate,
     status = status,
     travelDistanceKm = travelDistanceKm,

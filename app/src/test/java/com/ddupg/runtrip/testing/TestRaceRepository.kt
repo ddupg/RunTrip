@@ -4,6 +4,7 @@ import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceDetails
 import com.ddupg.runtrip.data.model.RaceInput
+import com.ddupg.runtrip.data.model.RaceLocation
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.RoadRunningCategory
 import com.ddupg.runtrip.data.model.RoadRunningDetails
@@ -150,11 +151,13 @@ internal fun testRace(
     createdAtEpochMillis: Long = 1_000,
     updatedAtEpochMillis: Long = 1_000,
     recordVersion: Int = 1,
+    location: RaceLocation? = null,
 ): Race = Race(
     details = details,
     id = id,
     name = name,
     city = city,
+    location = location,
     raceDate = raceDate,
     status = status,
     travelDistanceKm = travelDistanceKm,
@@ -173,6 +176,7 @@ private fun RaceInput.toTestRace(id: String): Race = testRace(
     id = id,
     name = name,
     city = city,
+    location = location,
     raceDate = raceDate,
     details = details,
     status = status,

@@ -3,6 +3,7 @@ package com.ddupg.runtrip.feature.form
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
+import com.ddupg.runtrip.data.model.RaceLocation
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.RoadRunningCategory
 import com.ddupg.runtrip.data.model.RoadRunningDetails
@@ -45,18 +46,37 @@ class RaceFormViewModelTest {
     }
 
     @Test
+    fun selectedLocationSavesAndExistingStructuredLocationLoads() = runTest(testDispatcher) {
+        val location = RaceLocation("330000", "浙江省", "330100", "杭州市", null, null, "9.0.0")
+        val repository = TestRaceRepository()
+        val viewModel = RaceFormViewModel(repository, raceId = null)
+        viewModel.updateDraft(validDraft().withLocation(location))
+        viewModel.save()
+        advanceUntilIdle()
+        assertEquals(location, repository.createdInputs.single().location)
+        assertEquals("", repository.createdInputs.single().city)
+        val edit = RaceFormViewModel(repository, raceId = "created-id")
+        advanceUntilIdle()
+        assertEquals(location, edit.uiState.value.draft.location)
+        edit.updateDraft(edit.uiState.value.draft.copy(raceNotes = "更新备注"))
+        edit.save()
+        advanceUntilIdle()
+        assertEquals(location, repository.updateCalls.single().input.location)
+    }
+
+    @Test
     fun draftChangeClearsOnlyErrorsForChangedFields() {
         val viewModel = RaceFormViewModel(TestRaceRepository(), raceId = null)
         val invalidDraft = viewModel.uiState.value.draft
 
         viewModel.save()
         assertNotNull(viewModel.uiState.value.errors.name)
-        assertNotNull(viewModel.uiState.value.errors.city)
+        assertNotNull(viewModel.uiState.value.errors.location)
 
         viewModel.updateDraft(invalidDraft.copy(name = "横店马拉松"))
 
         assertNull(viewModel.uiState.value.errors.name)
-        assertNotNull(viewModel.uiState.value.errors.city)
+        assertNotNull(viewModel.uiState.value.errors.location)
     }
 
     @Test

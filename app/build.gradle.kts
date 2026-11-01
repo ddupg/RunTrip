@@ -1,3 +1,8 @@
+import groovy.json.JsonSlurper
+import org.gradle.api.file.ArchiveOperations
+import org.gradle.api.file.FileSystemOperations
+import javax.inject.Inject
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -6,6 +11,67 @@ plugins {
 
 val runTripVersionName = providers.gradleProperty("runTripVersionName").get()
 val runTripVersionCode = providers.gradleProperty("runTripVersionCode").get().toInt()
+val chinaRegionDataVersion = providers.gradleProperty("chinaRegionDataVersion").get()
+
+@CacheableTask
+abstract class PrepareChinaRegions : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val archiveFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @get:Inject
+    abstract val archives: ArchiveOperations
+
+    @get:Inject
+    abstract val fileSystem: FileSystemOperations
+
+    @TaskAction
+    fun prepare() {
+        fileSystem.sync {
+            from(archives.tarTree(archiveFile))
+            include("package/level.json")
+            eachFile { path = "regions/$name" }
+            includeEmptyDirs = false
+            into(outputDirectory)
+        }
+        val codes = mutableSetOf<String>()
+        fun validate(nodes: Any?) {
+            require(nodes is List<*> && nodes.isNotEmpty()) { "Invalid region list in upstream data" }
+            nodes.forEach { value ->
+                require(value is Map<*, *>) { "Invalid region node" }
+                listOf("code", "name", "province").forEach { key ->
+                    require(value[key] is String && (value[key] as String).isNotBlank()) {
+                        "Invalid region field: $key"
+                    }
+                }
+                require(codes.add(value["code"] as String)) { "Duplicate region code: ${value["code"]}" }
+                listOf("city", "area").forEach { key ->
+                    require(value[key] == null || value[key] is String) { "Invalid region field: $key" }
+                }
+                value["children"]?.let {
+                    require(it is List<*>) { "Invalid region children" }
+                    if (it.isNotEmpty()) validate(it)
+                }
+            }
+        }
+        validate(JsonSlurper().parse(outputDirectory.file("regions/level.json").get().asFile))
+    }
+}
+
+val chinaRegionData by configurations.creating {
+    isCanBeConsumed = false
+    isTransitive = false
+}
+dependencies {
+    chinaRegionData("npm:china-regions:$chinaRegionDataVersion@tgz")
+}
+val prepareChinaRegions = tasks.register<PrepareChinaRegions>("prepareChinaRegions") {
+    archiveFile.set(layout.file(chinaRegionData.elements.map { it.single().asFile }))
+    outputDirectory.set(layout.buildDirectory.dir("generated/chinaRegions/assets"))
+}
 
 val releaseKeystorePath = providers.environmentVariable("RUNTRIP_KEYSTORE_PATH").orNull
 val releaseKeystorePassword = providers.environmentVariable("RUNTRIP_KEYSTORE_PASSWORD").orNull
@@ -28,6 +94,7 @@ android {
         targetSdk = 36
         versionCode = runTripVersionCode
         versionName = runTripVersionName
+        buildConfigField("String", "CHINA_REGION_DATA_VERSION", "\"$chinaRegionDataVersion\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -93,6 +160,13 @@ android {
     }
 }
 
+androidComponents.onVariants { variant ->
+    variant.sources.assets?.addGeneratedSourceDirectory(prepareChinaRegions, PrepareChinaRegions::outputDirectory)
+    variant.hostTests.values.forEach { test ->
+        test.sources.resources?.addGeneratedSourceDirectory(prepareChinaRegions, PrepareChinaRegions::outputDirectory)
+    }
+}
+
 dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.activity:activity-compose:1.13.0")
@@ -114,6 +188,9 @@ dependencies {
     ksp("androidx.room:room-compiler:2.8.4")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("androidx.test:core:1.7.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")

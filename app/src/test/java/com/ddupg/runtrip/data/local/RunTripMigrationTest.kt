@@ -91,7 +91,66 @@ class RunTripMigrationTest {
     }
 
     @Test
-    fun migration3To4PreservesRoadAndTriathlonAndAllowsTrailRecords() = runTest {
+    fun migration4To5PreservesLegacyTrailAndAllowsReselectionAndReopen() = runTest {
+        val schemaPath = "com.ddupg.runtrip.data.local.RunTripDatabase/4.json"
+        val entities = JSONObject(requireNotNull(javaClass.classLoader?.getResourceAsStream(schemaPath))
+            .bufferedReader().use { it.readText() }).getJSONObject("database").getJSONArray("entities")
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context).name(DATABASE_NAME)
+                .callback(object : SupportSQLiteOpenHelper.Callback(4) {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        for (index in 0 until entities.length()) {
+                            val table = entities.getJSONObject(index)
+                            db.execSQL(table.getString("createSql").replace("\${TABLE_NAME}", table.getString("tableName")))
+                        }
+                    }
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = error("Unexpected upgrade")
+                }).build(),
+        )
+        val before: Map<String, List<List<String?>>>
+        try {
+            val db = helper.writableDatabase
+            db.execSQL("""INSERT INTO races (id, name, city, raceDate, sportTypeCode, statusCode,
+                hotelBookingStatusCode, createdAtEpochMillis, updatedAtEpochMillis, recordVersion)
+                VALUES ('legacy-v4', '山径赛', '朝阳（原始地点）', '2026-11-15', 'TRAIL_RUNNING',
+                'REGISTERED', 'NOT_BOOKED', 1000, 2000, 3)""")
+            db.execSQL("INSERT INTO trail_running_details VALUES ('legacy-v4', 'CUSTOM', 30.5, 1200)")
+            before = snapshot(db)
+        } finally {
+            helper.close()
+        }
+        database = RunTripDatabase.create(context)
+        var repository = OfflineRaceRepository(requireNotNull(database).raceDao())
+        val legacy = requireNotNull(repository.observeRace("legacy-v4").first())
+        assertEquals(before, snapshot(requireNotNull(database).openHelper.readableDatabase))
+        assertEquals("朝阳（原始地点）", legacy.city)
+        assertNull(legacy.location)
+        assertEquals(TrailRunningDetails(30.5, 1200), legacy.details)
+        assertEquals(3, legacy.recordVersion)
+        repository.update(legacy.id, RaceInput(
+            name = "只修改名称", city = legacy.city, raceDate = legacy.raceDate,
+            details = legacy.details, status = legacy.status,
+        ))
+        assertEquals(legacy.city, repository.observeRace(legacy.id).first()?.city)
+        assertNull(repository.observeRace(legacy.id).first()?.location)
+
+        val location = RaceLocation("110000", "北京市", "110000", "北京市", "110105", "朝阳区", "9.0.0")
+        repository.update(legacy.id, RaceInput(
+            name = "重新选择地点", location = location, raceDate = legacy.raceDate,
+            details = legacy.details, status = legacy.status,
+        ))
+        database?.close()
+        database = RunTripDatabase.create(context)
+        repository = OfflineRaceRepository(requireNotNull(database).raceDao())
+        val updated = requireNotNull(repository.observeRace(legacy.id).first())
+        assertEquals("", updated.city)
+        assertEquals(location, updated.location)
+        assertEquals(legacy.details, updated.details)
+        assertEquals(legacy.createdAtEpochMillis, updated.createdAtEpochMillis)
+    }
+
+    @Test
+    fun migration3ToLatestPreservesRoadAndTriathlonAndAllowsTrailRecords() = runTest {
         val schemaPath = "com.ddupg.runtrip.data.local.RunTripDatabase/3.json"
         val schema = JSONObject(requireNotNull(javaClass.classLoader?.getResourceAsStream(schemaPath))
             .bufferedReader().use { it.readText() }).getJSONObject("database").getJSONArray("entities")
@@ -143,7 +202,10 @@ class RunTripMigrationTest {
         listOf("races", "road_running_details", "triathlon_details").associateWith { table ->
             db.query("SELECT * FROM $table ORDER BY 1").use { cursor ->
                 buildList {
-                    while (cursor.moveToNext()) add((0 until cursor.columnCount).map { cursor.getString(it) })
+                    val originalColumns = (0 until cursor.columnCount).filterNot {
+                        cursor.getColumnName(it).startsWith("location_")
+                    }
+                    while (cursor.moveToNext()) add(originalColumns.map { cursor.getString(it) })
                 }
             }
         }
