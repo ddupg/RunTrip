@@ -7,6 +7,7 @@ import androidx.room.Relation
 import com.ddupg.runtrip.data.model.CaaRaceLevel
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
+import com.ddupg.runtrip.data.model.RaceLocation
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.RoadRunningCategory
 import com.ddupg.runtrip.data.model.RoadRunningDetails
@@ -22,6 +23,7 @@ import java.time.LocalDate
 data class RaceEntity(
     @PrimaryKey val id: String,
     val name: String,
+    @Deprecated("仅兼容旧记录；2.0.0 通过 Room 迁移移除 city 列")
     val city: String,
     val raceDate: String,
     val sportTypeCode: String,
@@ -36,6 +38,7 @@ data class RaceEntity(
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
     val recordVersion: Int,
+    @Embedded(prefix = "location_") val location: RaceLocation? = null,
 )
 
 fun RaceRecord.toDomain(): Race = with(race) {
@@ -43,6 +46,7 @@ fun RaceRecord.toDomain(): Race = with(race) {
         id = id,
         name = name,
         city = city,
+        location = location,
         raceDate = LocalDate.parse(raceDate),
         details = when (SportType.fromCode(sportTypeCode)) {
             SportType.ROAD_RUNNING -> {
@@ -86,6 +90,7 @@ fun Race.toEntity(): RaceRecord = RaceRecord(
         id = id,
         name = name,
         city = city,
+        location = location,
         raceDate = raceDate.toString(),
         sportTypeCode = details.sportType.code,
         statusCode = status.code,

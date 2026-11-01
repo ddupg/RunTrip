@@ -10,6 +10,7 @@ import com.ddupg.runtrip.data.model.TriathlonCategory
 import com.ddupg.runtrip.data.model.TriathlonDetails
 import com.ddupg.runtrip.testing.testRace
 import com.ddupg.runtrip.data.model.TrailRunningDetails
+import com.ddupg.runtrip.data.model.RaceLocation
 import java.time.DayOfWeek
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -18,6 +19,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RacePresentationTest {
+    @Test
+    fun locationUsesSnapshotAndDisplaysMunicipalityOnlyOnce() {
+        val district = RaceLocation("330000", "浙江省", "330100", "杭州市", "330106", "西湖区", "old-version")
+        val race = testRace(city = "废弃文本", location = district)
+        assertEquals("杭州市 · 西湖区", RacePresentation.location(race).text)
+        assertEquals("浙江省 / 杭州市 / 西湖区", RacePresentation.location(race, RaceLabelDensity.FULL).text)
+        assertEquals("杭州市", RacePresentation.location(race.copy(location = district.copy(districtCode = null, districtName = null))).text)
+        val beijing = RaceLocation("110000", "北京市", "110000", "北京市", "110105", "朝阳区", "9.0.0")
+        assertEquals("北京市 / 朝阳区", RacePresentation.location(beijing, "", RaceLabelDensity.FULL).text)
+        assertEquals("北京市 · 朝阳区", RacePresentation.location(beijing, "", RaceLabelDensity.COMPACT).text)
+        assertEquals("金华", RacePresentation.location(testRace()).text)
+    }
+
     @Test
     fun trailShowsRaceDistanceAndElevationWithoutConfusingTravelDistance() {
         val race = testRace(details = TrailRunningDetails(30.5, 1200), travelDistanceKm = 200.0)

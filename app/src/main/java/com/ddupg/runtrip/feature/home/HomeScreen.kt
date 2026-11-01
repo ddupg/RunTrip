@@ -623,7 +623,7 @@ private fun QuickStatusSheet(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "${race.name} · ${race.city}",
+                    text = "${race.name} · ${RacePresentation.location(race).text}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -696,7 +696,7 @@ private fun QuickStatusSheet(
 }
 
 internal fun formatRaceTimelineSummary(race: Race): AnnotatedString = buildAnnotatedString {
-    append(race.city)
+    append(RacePresentation.location(race).text)
     append(" · ")
     append(RacePresentation.raceProject(race, RaceLabelDensity.COMPACT).text)
     RacePresentation.detailFields(race.details, RaceLabelDensity.COMPACT).forEach {

@@ -312,20 +312,7 @@ private fun RaceFormContent(
             }
         }
         item {
-            RunTripControlTheme {
-                OutlinedTextField(
-                    value = draft.city,
-                    onValueChange = { value ->
-                        onDraftChange(draft.copy(city = value))
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("城市") },
-                    singleLine = true,
-                    isError = uiState.errors.city != null,
-                    supportingText = uiState.errors.city?.let { error -> { Text(error) } },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                )
-            }
+            RaceLocationField(draft, uiState.errors.location, !uiState.isSaving, onDraftChange)
         }
         item {
             RunTripControlTheme {

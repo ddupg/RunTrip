@@ -3,6 +3,7 @@ package com.ddupg.runtrip.feature.form
 import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceInput
+import com.ddupg.runtrip.data.model.RaceLocation
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.RoadRunningCategory
 import com.ddupg.runtrip.data.model.SportType
@@ -13,16 +14,17 @@ data class RaceFormErrors(
     val category: String? = null,
     val sportFields: Map<String, String> = emptyMap(),
     val name: String? = null,
-    val city: String? = null,
+    val location: String? = null,
     val travelDistance: String? = null,
     val hotelPrice: String? = null,
 ) {
     val hasErrors: Boolean
-        get() = sportFields.isNotEmpty() || listOf(category, name, city, travelDistance, hotelPrice).any { it != null }
+        get() = sportFields.isNotEmpty() || listOf(category, name, location, travelDistance, hotelPrice).any { it != null }
 }
 
 data class RaceDraft(
     val name: String = "",
+    @Deprecated("仅兼容旧记录；2.0.0 移除，请使用 location")
     val city: String = "",
     val raceDate: LocalDate = LocalDate.now(),
     val sportType: SportType = SportType.ROAD_RUNNING,
@@ -37,6 +39,7 @@ data class RaceDraft(
     val hotelPrice: String = "",
     val hotelNotes: String = "",
     val raceNotes: String = "",
+    val location: RaceLocation? = null,
 ) {
     val activeSportDraft: SportDraft get() = sportDrafts[sportType] ?: sportType.emptyDraft()
 
@@ -44,6 +47,8 @@ data class RaceDraft(
         require(value.sportType == sportType)
         return copy(sportDrafts = sportDrafts + (sportType to value))
     }
+
+    fun withLocation(value: RaceLocation): RaceDraft = copy(location = value, city = "")
 }
 
 data class RaceFormUiState(
@@ -63,7 +68,7 @@ internal data class RaceFormValidationResult(
 
 internal fun validateRaceForm(draft: RaceDraft): RaceFormValidationResult {
     val nameError = if (draft.name.isBlank()) "请输入比赛名称" else null
-    val cityError = if (draft.city.isBlank()) "请输入城市" else null
+    val locationError = if (draft.location == null && draft.city.isBlank()) "请选择比赛地点" else null
 
     val distanceText = draft.travelDistance.trim()
     val distance = distanceText.takeIf { it.isNotEmpty() }?.toDoubleOrNull()
@@ -88,7 +93,7 @@ internal fun validateRaceForm(draft: RaceDraft): RaceFormValidationResult {
         category = if (draft.activeSportDraft.category == null) "请选择比赛项目" else null,
         sportFields = draft.activeSportDraft.validationErrors(),
         name = nameError,
-        city = cityError,
+        location = locationError,
         travelDistance = distanceError,
         hotelPrice = priceError,
     )
@@ -101,6 +106,7 @@ internal fun validateRaceForm(draft: RaceDraft): RaceFormValidationResult {
             details = requireNotNull(details),
             name = draft.name,
             city = draft.city,
+            location = draft.location,
             raceDate = draft.raceDate,
             status = draft.status,
             travelDistanceKm = distance,
@@ -124,6 +130,7 @@ internal fun RaceFormUiState.withDraft(updatedDraft: RaceDraft): RaceFormUiState
 internal fun Race.toDraft(): RaceDraft = RaceDraft(
     name = name,
     city = city,
+    location = location,
     raceDate = raceDate,
     sportType = details.sportType,
     sportDrafts = mapOf(details.sportType to details.toDraft()),
@@ -150,7 +157,7 @@ private fun RaceFormErrors.clearedForChanges(
             previousDraft.activeSportDraft.category == updatedDraft.activeSportDraft.category
     },
     name = name.takeIf { previousDraft.name == updatedDraft.name },
-    city = city.takeIf { previousDraft.city == updatedDraft.city },
+    location = location.takeIf { previousDraft.city == updatedDraft.city && previousDraft.location == updatedDraft.location },
     travelDistance = travelDistance.takeIf {
         previousDraft.travelDistance == updatedDraft.travelDistance
     },

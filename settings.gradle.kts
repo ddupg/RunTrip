@@ -11,6 +11,15 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        ivy {
+            name = "ChinaRegionData"
+            url = uri("https://registry.npmjs.org")
+            patternLayout {
+                artifact("@province-city-china/level/-/level-[revision].[ext]")
+            }
+            metadataSources { artifact() }
+            content { includeModule("npm", "china-regions") }
+        }
     }
 }
 

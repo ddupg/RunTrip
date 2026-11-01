@@ -5,6 +5,7 @@ import com.ddupg.runtrip.data.model.HotelBookingStatus
 import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceCategory
 import com.ddupg.runtrip.data.model.RaceDetails
+import com.ddupg.runtrip.data.model.RaceLocation
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.RoadRunningCategory
 import com.ddupg.runtrip.data.model.RoadRunningDetails
@@ -34,6 +35,23 @@ data class RaceDisplayText(
 )
 
 object RacePresentation {
+    fun location(race: Race, density: RaceLabelDensity = RaceLabelDensity.COMPACT): RaceDisplayText =
+        location(race.location, race.city, density)
+
+    fun location(location: RaceLocation?, legacyCity: String, density: RaceLabelDensity): RaceDisplayText {
+        if (location == null) return optionalText(legacyCity)
+        val parts = listOfNotNull(
+            location.provinceCode to location.provinceName,
+            location.cityCode?.let { it to requireNotNull(location.cityName) },
+            location.districtCode?.let { it to requireNotNull(location.districtName) },
+        ).distinctBy { it.first }
+        return RaceDisplayText(
+            if (density == RaceLabelDensity.FULL) parts.joinToString(" / ") { it.second }
+            else (if (location.cityCode == null || location.cityCode == location.provinceCode) parts else parts.drop(1))
+                .joinToString(" · ") { it.second },
+        )
+    }
+
     fun sportType(type: SportType, density: RaceLabelDensity = RaceLabelDensity.COMPACT): RaceDisplayText = RaceDisplayText(when (type) {
         SportType.ROAD_RUNNING -> "路跑"
         SportType.TRIATHLON -> "铁三"

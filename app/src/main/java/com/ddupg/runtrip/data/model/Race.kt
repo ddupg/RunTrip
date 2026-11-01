@@ -5,7 +5,8 @@ import java.time.LocalDate
 data class Race(
     val id: String,
     val name: String,
-    val city: String,
+    @Deprecated("仅兼容旧记录；2.0.0 移除，请使用 location")
+    val city: String = "",
     val raceDate: LocalDate,
     val details: RaceDetails,
     val status: RaceStatus,
@@ -19,13 +20,15 @@ data class Race(
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
     val recordVersion: Int,
+    val location: RaceLocation? = null,
 ) {
     val category: RaceCategory get() = details.category
 }
 
 data class RaceInput(
     val name: String,
-    val city: String,
+    @Deprecated("仅兼容旧记录；2.0.0 移除，请使用 location")
+    val city: String = "",
     val raceDate: LocalDate,
     val details: RaceDetails,
     val status: RaceStatus,
@@ -36,12 +39,13 @@ data class RaceInput(
     val hotelTotalPriceCents: Long? = null,
     val hotelNotes: String? = null,
     val raceNotes: String? = null,
+    val location: RaceLocation? = null,
 ) {
     val category: RaceCategory get() = details.category
 
     fun validatedAndNormalized(): RaceInput {
         require(name.isNotBlank()) { "Race name is required" }
-        require(city.isNotBlank()) { "Race city is required" }
+        require(location != null || city.isNotBlank()) { "Race location is required" }
         require(travelDistanceKm == null || travelDistanceKm >= 0) {
             "Travel distance cannot be negative"
         }
@@ -51,7 +55,7 @@ data class RaceInput(
 
         return copy(
             name = name.trim(),
-            city = city.trim(),
+            city = if (location == null) city.trim() else "",
             hotelName = hotelName.normalizedOptionalText(),
             bookingPlatform = bookingPlatform.normalizedOptionalText(),
             hotelNotes = hotelNotes.normalizedOptionalText(),
