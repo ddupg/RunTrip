@@ -9,6 +9,7 @@ class RunTripRoutesTest {
     fun `bottom navigation is only visible on top level routes`() {
         assertTrue(RunTripRoutes.isTopLevel(RunTripRoutes.HOME))
         assertTrue(RunTripRoutes.isTopLevel(RunTripRoutes.TOOLS))
+        assertTrue(RunTripRoutes.isTopLevel(RunTripRoutes.ME))
 
         assertFalse(RunTripRoutes.isTopLevel(RunTripRoutes.PACE_CALCULATOR))
         assertFalse(RunTripRoutes.isTopLevel(RunTripRoutes.EDIT_RACE_PATTERN))

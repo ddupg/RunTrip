@@ -5,6 +5,11 @@ import com.ddupg.runtrip.data.local.RunTripDatabase
 import com.ddupg.runtrip.data.repository.OfflineRaceRepository
 import com.ddupg.runtrip.data.repository.RaceRepository
 import com.ddupg.runtrip.data.region.RegionCatalog
+import com.ddupg.runtrip.data.source.DataSourceConnector
+import com.ddupg.runtrip.data.source.EncryptedSourceStore
+import com.ddupg.runtrip.data.source.androidSourceCipher
+import com.ddupg.runtrip.data.source.coros.CorosDataSourceConnector
+import java.io.File
 
 class RunTripApplication : Application() {
     val regionCatalog: RegionCatalog by lazy {
@@ -18,5 +23,10 @@ class RunTripApplication : Application() {
 
     val raceRepository: RaceRepository by lazy {
         OfflineRaceRepository(database.raceDao())
+    }
+
+    val dataSourceConnectors: List<DataSourceConnector> by lazy {
+        val store = EncryptedSourceStore(File(noBackupFilesDir, "data-sources"), androidSourceCipher())
+        listOf(CorosDataSourceConnector(store))
     }
 }

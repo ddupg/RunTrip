@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -35,6 +36,7 @@ import com.ddupg.runtrip.feature.form.RaceFormRoute
 import com.ddupg.runtrip.feature.home.HomeRoute
 import com.ddupg.runtrip.feature.pace.PaceCalculatorScreen
 import com.ddupg.runtrip.feature.tools.ToolsScreen
+import com.ddupg.runtrip.feature.me.MeRoute
 import com.ddupg.runtrip.navigation.RunTripRoutes
 import com.ddupg.runtrip.ui.theme.RunTripTheme
 
@@ -54,6 +56,11 @@ private val topLevelDestinations = listOf(
         route = RunTripRoutes.TOOLS,
         label = "工具",
         icon = Icons.Outlined.Build,
+    ),
+    TopLevelDestination(
+        route = RunTripRoutes.ME,
+        label = "我",
+        icon = Icons.Outlined.PersonOutline,
     ),
 )
 
@@ -105,6 +112,9 @@ fun RunTripApp() {
                             navController.navigate(RunTripRoutes.PACE_CALCULATOR)
                         },
                     )
+                }
+                composable(RunTripRoutes.ME) {
+                    MeRoute(connectors = application.dataSourceConnectors)
                 }
                 composable(RunTripRoutes.PACE_CALCULATOR) {
                     PaceCalculatorScreen(onBack = { navController.popBackStack() })
