@@ -1,6 +1,5 @@
 package com.ddupg.runtrip.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
@@ -66,7 +65,7 @@ internal val RunTripDarkColors = darkColorScheme(
 
 @Composable
 fun RunTripTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     MaterialTheme(
