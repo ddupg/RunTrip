@@ -7,6 +7,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 internal class TestCorosService : CorosHttpTransport {
+    var trainingArguments: JSONObject? = null
+    var trainingText = ""
+    var trainingUnauthorized = false
     var authorized = false
     var wrongState = false
     var profileFails = false
@@ -77,10 +80,21 @@ internal class TestCorosService : CorosHttpTransport {
                 val result = when (rpc.getString("method")) {
                     "initialize" -> JSONObject().put("protocolVersion", "2025-06-18")
                     "tools/call" -> {
-                        check(rpc.getJSONObject("params").getString("name") == "queryUserInfo")
-                        if (profileFails) return CorosHttpResponse(503, "")
+                        val params = rpc.getJSONObject("params")
+                        val text = when (params.getString("name")) {
+                            "queryUserInfo" -> {
+                                if (profileFails) return CorosHttpResponse(503, "")
+                                "Nickname: $nickname\nHeight: 180 cm\n"
+                            }
+                            "querySportRecords" -> {
+                                if (trainingUnauthorized) return CorosHttpResponse(401, "")
+                                trainingArguments = params.getJSONObject("arguments")
+                                trainingText
+                            }
+                            else -> error("Unexpected tool")
+                        }
                         JSONObject().put("content", JSONArray().put(JSONObject().put("type", "text")
-                            .put("text", JSONObject.quote("Nickname: $nickname\nHeight: 180 cm\n"))))
+                            .put("text", JSONObject.quote(text))))
                     }
                     else -> error("Unexpected MCP operation")
                 }

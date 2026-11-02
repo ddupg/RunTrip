@@ -4,6 +4,8 @@ import android.app.Application
 import com.ddupg.runtrip.data.local.RunTripDatabase
 import com.ddupg.runtrip.data.repository.OfflineRaceRepository
 import com.ddupg.runtrip.data.repository.RaceRepository
+import com.ddupg.runtrip.data.repository.TrainingRepository
+import com.ddupg.runtrip.data.repository.LocalTrainingRepository
 import com.ddupg.runtrip.data.region.RegionCatalog
 import com.ddupg.runtrip.data.source.DataSourceConnector
 import com.ddupg.runtrip.data.source.EncryptedSourceStore
@@ -25,8 +27,14 @@ class RunTripApplication : Application() {
         OfflineRaceRepository(database.raceDao())
     }
 
-    val dataSourceConnectors: List<DataSourceConnector> by lazy {
+    private val corosSource by lazy {
         val store = EncryptedSourceStore(File(noBackupFilesDir, "data-sources"), androidSourceCipher())
-        listOf(CorosDataSourceConnector(store))
+        CorosDataSourceConnector(store)
+    }
+
+    val dataSourceConnectors: List<DataSourceConnector> by lazy { listOf(corosSource) }
+
+    val trainingRepository: TrainingRepository by lazy {
+        LocalTrainingRepository(database.trainingDao(), listOf(corosSource))
     }
 }

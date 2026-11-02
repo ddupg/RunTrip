@@ -132,6 +132,49 @@ class CorosDataSourceConnectorTest {
     }
 
     @Test
+    fun `training reuses rotated credentials and sends all requested subtypes`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply {
+            authorized = true
+            sse = true
+            trainingText = "No sport records found from 2026-10-01 to 2026-10-31."
+        }
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        connector.beginAuthorization()
+        connector.completeAuthorization()
+        val later = CorosDataSourceConnector(store, CorosOAuthApi(service), Clock.offset(clock, java.time.Duration.ofHours(2)), StandardTestDispatcher(testScheduler))
+        val start = java.time.LocalDate.parse("2026-10-01")
+        val end = java.time.LocalDate.parse("2026-10-31")
+        assertTrue(later.readTraining("synthetic-account-id", start, end, 1000).isEmpty())
+        assertEquals(1, service.refreshes)
+        val args = requireNotNull(service.trainingArguments)
+        assertEquals("20261001", args.getString("startDate"))
+        assertEquals("20261031", args.getString("endDate"))
+        val codes = args.getJSONArray("sportTypeCodes")
+        assertEquals(CorosTrainingParser.subtypes.keys, (0 until codes.length()).map(codes::getInt).toSet())
+        assertEquals(1000, args.getInt("limit"))
+        later.disconnect()
+        try {
+            later.readTraining("synthetic-account-id", start, end, 1000)
+            fail("Disconnected account must not read records")
+        } catch (_: com.ddupg.runtrip.data.source.TrainingAccountChanged) { }
+    }
+
+    @Test
+    fun `training unauthorized clears the local connection`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply { authorized = true; trainingUnauthorized = true }
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        connector.beginAuthorization()
+        connector.completeAuthorization()
+        try {
+            connector.readTraining("synthetic-account-id", java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-31"), 1000)
+            fail("Revoked credential must not stay bound")
+        } catch (_: SourceAuthorizationExpired) { }
+        assertNull(store.json)
+    }
+
+    @Test
     fun `PKCE matches RFC example`() {
         assertEquals("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", CorosOAuthApi.pkceChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
     }

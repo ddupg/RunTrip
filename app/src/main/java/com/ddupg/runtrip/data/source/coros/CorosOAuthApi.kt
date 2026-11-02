@@ -8,6 +8,8 @@ import java.net.URI
 import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
@@ -183,6 +185,7 @@ internal class CorosOAuthApi(private val transport: CorosHttpTransport = UrlConn
         val response = request("POST", "$issuer/mcp", headers + ("Content-Type" to "application/json"),
             JSONObject().put("jsonrpc", "2.0").put("id", if (method == "initialize") 1 else 2)
                 .put("method", method).put("params", params).toString())
+        if (response.status == 401) throw SourceAuthorizationExpired()
         if (response.status != 200) throw SourceProtocolException()
         // COROS may frame JSON-RPC responses as SSE, as in the official helper.
         val json = if (response.body.trimStart().startsWith("{")) response.body else {
@@ -195,5 +198,19 @@ internal class CorosOAuthApi(private val transport: CorosHttpTransport = UrlConn
         val envelope = JSONObject(json)
         if (envelope.has("error")) throw SourceProtocolException()
         return envelope.getJSONObject("result")
+    }
+
+    fun training(issuer: String, accessToken: String, start: LocalDate, end: LocalDate, limit: Int) = run {
+        val headers = mapOf("Authorization" to "Bearer $accessToken", "Accept" to "application/json, text/event-stream")
+        mcp(issuer, headers, "initialize", JSONObject().put("protocolVersion", "2025-06-18")
+            .put("capabilities", JSONObject()).put("clientInfo", JSONObject().put("name", "RunTrip").put("version", "1.0")))
+        val arguments = JSONObject()
+            .put("startDate", start.format(DateTimeFormatter.BASIC_ISO_DATE))
+            .put("endDate", end.format(DateTimeFormatter.BASIC_ISO_DATE))
+            .put("sportTypeCodes", JSONArray(CorosTrainingParser.subtypes.keys.toList())).put("limit", limit)
+        CorosTrainingParser.parse(
+            mcp(issuer, headers, "tools/call", JSONObject().put("name", "querySportRecords").put("arguments", arguments)),
+            start, end,
+        )
     }
 }

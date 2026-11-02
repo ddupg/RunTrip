@@ -2,6 +2,7 @@ package com.ddupg.runtrip.navigation
 
 object RunTripRoutes {
     const val HOME = "home"
+    const val TRAINING = "training"
     const val TOOLS = "tools"
     const val ME = "me"
     const val PACE_CALCULATOR = "tools/pace-calculator"
@@ -13,5 +14,5 @@ object RunTripRoutes {
 
     fun editRace(raceId: String): String = "race/$raceId/edit"
 
-    fun isTopLevel(route: String?): Boolean = route == HOME || route == TOOLS || route == ME
+    fun isTopLevel(route: String?): Boolean = route == HOME || route == TRAINING || route == TOOLS || route == ME
 }
