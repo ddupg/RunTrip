@@ -126,3 +126,16 @@ internal val MIGRATION_4_5 = object : Migration(4, 5) {
             .forEach { field -> db.execSQL("ALTER TABLE races ADD COLUMN `location_$field` TEXT") }
     }
 }
+
+internal val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""CREATE TABLE training_activities (
+            `sourceCode` TEXT NOT NULL, `accountId` TEXT NOT NULL, `activityId` TEXT NOT NULL,
+            `subtypeCode` TEXT NOT NULL, `sourceDate` TEXT NOT NULL, `startEpochSeconds` INTEGER,
+            `distanceMeters` REAL, `durationSeconds` INTEGER NOT NULL,
+            PRIMARY KEY(`sourceCode`, `accountId`, `activityId`))""")
+        db.execSQL("""CREATE TABLE training_imports (
+            `sourceCode` TEXT NOT NULL, `accountId` TEXT NOT NULL, `nextHistoryEnd` TEXT,
+            `lastRefreshDay` TEXT NOT NULL, PRIMARY KEY(`sourceCode`, `accountId`))""")
+    }
+}

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +38,7 @@ import com.ddupg.runtrip.feature.home.HomeRoute
 import com.ddupg.runtrip.feature.pace.PaceCalculatorScreen
 import com.ddupg.runtrip.feature.tools.ToolsScreen
 import com.ddupg.runtrip.feature.me.MeRoute
+import com.ddupg.runtrip.feature.training.TrainingRoute
 import com.ddupg.runtrip.navigation.RunTripRoutes
 import com.ddupg.runtrip.ui.theme.RunTripTheme
 
@@ -51,6 +53,11 @@ private val topLevelDestinations = listOf(
         route = RunTripRoutes.HOME,
         label = "比赛",
         icon = Icons.Outlined.CalendarMonth,
+    ),
+    TopLevelDestination(
+        route = RunTripRoutes.TRAINING,
+        label = "训练",
+        icon = Icons.AutoMirrored.Outlined.DirectionsRun,
     ),
     TopLevelDestination(
         route = RunTripRoutes.TOOLS,
@@ -105,6 +112,15 @@ fun RunTripApp() {
                             navController.navigate(RunTripRoutes.raceDetail(raceId))
                         },
                     )
+                }
+                composable(RunTripRoutes.TRAINING) {
+                    TrainingRoute(repository = application.trainingRepository, onConnect = {
+                        navController.navigate(RunTripRoutes.ME) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    })
                 }
                 composable(RunTripRoutes.TOOLS) {
                     ToolsScreen(

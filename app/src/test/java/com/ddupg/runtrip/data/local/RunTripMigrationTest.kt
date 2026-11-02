@@ -198,6 +198,54 @@ class RunTripMigrationTest {
         assertEquals(input.details, OfflineRaceRepository(requireNotNull(database).raceDao()).observeRace(id).first()?.details)
     }
 
+    @Test
+    fun migration5To6PreservesRaceAndStoresTrainingAcrossReopen() = runTest {
+        val schemaPath = "com.ddupg.runtrip.data.local.RunTripDatabase/5.json"
+        val entities = JSONObject(requireNotNull(javaClass.classLoader?.getResourceAsStream(schemaPath))
+            .bufferedReader().use { it.readText() }).getJSONObject("database").getJSONArray("entities")
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context).name(DATABASE_NAME)
+                .callback(object : SupportSQLiteOpenHelper.Callback(5) {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        for (index in 0 until entities.length()) {
+                            val table = entities.getJSONObject(index)
+                            db.execSQL(table.getString("createSql").replace("\${TABLE_NAME}", table.getString("tableName")))
+                        }
+                    }
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = error("Unexpected upgrade")
+                }).build(),
+        )
+        try {
+            val db = helper.writableDatabase
+            db.execSQL("""INSERT INTO races (id, name, city, raceDate, sportTypeCode, statusCode,
+                hotelBookingStatusCode, createdAtEpochMillis, updatedAtEpochMillis, recordVersion,
+                location_provinceCode, location_provinceName, location_cityCode, location_cityName, location_dataVersion)
+                VALUES ('legacy-v5', '既有比赛', '', '2026-11-15', 'ROAD_RUNNING', 'REGISTERED',
+                'NOT_BOOKED', 1000, 2000, 3, '330000', '浙江省', '330100', '杭州市', '9.0.0')""")
+            db.execSQL("INSERT INTO road_running_details VALUES ('legacy-v5', 'HALF_MARATHON', 'A1', 'GOLD')")
+        } finally {
+            helper.close()
+        }
+        database = RunTripDatabase.create(context)
+        val before = requireNotNull(OfflineRaceRepository(requireNotNull(database).raceDao()).observeRace("legacy-v5").first())
+        assertEquals("既有比赛", before.name)
+        assertEquals("杭州市", before.location?.cityName)
+        assertEquals(3, before.recordVersion)
+        requireNotNull(database).trainingDao().saveBatch(
+            listOf(TrainingActivityEntity("coros", "synthetic-account", "synthetic-activity", "POOL_SWIM",
+                "2026-11-02", null, null, 2160)),
+            TrainingImportEntity("coros", "synthetic-account", "2025-12-31", "2026-11-02"),
+        )
+        database?.close()
+        database = RunTripDatabase.create(context)
+        assertEquals(before, OfflineRaceRepository(requireNotNull(database).raceDao()).observeRace("legacy-v5").first())
+        val record = requireNotNull(database).trainingDao().observe("coros", "synthetic-account").first().single()
+        assertNull(record.distanceMeters)
+        assertNull(record.startEpochSeconds)
+        assertEquals(2160L, record.durationSeconds)
+        assertEquals("2025-12-31", requireNotNull(database).trainingDao().importState("coros", "synthetic-account")?.nextHistoryEnd)
+    }
+
     private fun snapshot(db: SupportSQLiteDatabase): Map<String, List<List<String?>>> =
         listOf("races", "road_running_details", "triathlon_details").associateWith { table ->
             db.query("SELECT * FROM $table ORDER BY 1").use { cursor ->

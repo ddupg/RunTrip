@@ -1,6 +1,7 @@
 package com.ddupg.runtrip.data.source.coros
 
-import com.ddupg.runtrip.data.source.DataSourceConnector
+import com.ddupg.runtrip.data.source.TrainingDataSource
+import com.ddupg.runtrip.data.source.TrainingAccountChanged
 import com.ddupg.runtrip.data.source.DataSourceId
 import com.ddupg.runtrip.data.source.SourceAccount
 import com.ddupg.runtrip.data.source.SourceAuthorizationExpired
@@ -9,6 +10,7 @@ import com.ddupg.runtrip.data.source.SourceProtocolException
 import com.ddupg.runtrip.data.source.SourceStore
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -21,7 +23,7 @@ internal class CorosDataSourceConnector(
     private val api: CorosOAuthApi = CorosOAuthApi(),
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-) : DataSourceConnector {
+) : TrainingDataSource {
     override val id = DataSourceId.COROS
     private val mutex = Mutex()
 
@@ -132,5 +134,21 @@ internal class CorosDataSourceConnector(
 
     override suspend fun disconnect() = withContext(dispatcher) {
         mutex.withLock { store.clear(id) }
+    }
+
+    override suspend fun readTraining(accountId: String, start: LocalDate, end: LocalDate, limit: Int) = withContext(dispatcher) {
+        mutex.withLock {
+            val value = snapshot()
+            val bound = connection(value) as? SourceConnection.Bound
+            if (bound?.account?.id != accountId) throw TrainingAccountChanged()
+            try {
+                complete(value)
+                val credentials = value.getJSONObject("credentials")
+                api.training(credentials.getString("issuer"), credentials.getString("accessToken"), start, end, limit)
+            } catch (expired: SourceAuthorizationExpired) {
+                store.clear(id)
+                throw expired
+            }
+        }
     }
 }
