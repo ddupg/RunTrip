@@ -13,7 +13,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validation:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/android-ci.yml
+
   release:
+    needs: validation
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -68,8 +74,8 @@ jobs:
           printf '%s' "$RUNTRIP_KEYSTORE_BASE64" | base64 --decode > "$RUNTRIP_KEYSTORE_PATH"
           chmod 600 "$RUNTRIP_KEYSTORE_PATH"
 
-      - name: Test, lint, and build signed release APK
-        run: ./gradlew test lint assembleRelease --no-configuration-cache --stacktrace
+      - name: Build signed release APK
+        run: ./gradlew assembleRelease --no-configuration-cache --stacktrace
 
       - name: Verify and package APK
         shell: bash
