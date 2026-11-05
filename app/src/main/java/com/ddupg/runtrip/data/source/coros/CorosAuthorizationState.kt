@@ -36,7 +36,7 @@ internal data class CorosAuthorizationState(
 /** The encrypted SourceStore owns the envelope; this codec preserves its v1 value fields. */
 internal object CorosAuthorizationCodec {
     fun decode(value: JSONObject): CorosAuthorizationState {
-        val credentials = value.optJSONObject("credentials")?.let {
+        val credentials = value.optionalObject("credentials")?.let {
             CorosCredentials(
                 issuer = it.getString("issuer"),
                 clientId = it.getString("clientId"),
@@ -45,7 +45,7 @@ internal object CorosAuthorizationCodec {
                 expiresAt = it.getLong("expiresAt"),
             )
         }
-        val pending = value.optJSONObject("pending")?.let {
+        val pending = value.optionalObject("pending")?.let {
             CorosPendingAuthorization(
                 issuer = it.getString("issuer"),
                 clientId = it.getString("clientId"),
@@ -62,7 +62,7 @@ internal object CorosAuthorizationCodec {
                 exchangeStarted = it.optionalBoolean("exchangeStarted"),
             )
         }
-        val account = value.optJSONObject("account")?.let {
+        val account = value.optionalObject("account")?.let {
             SourceAccount(id = it.getString("id"), name = if (it.isNull("name")) null else it.getString("name"))
         }
         return CorosAuthorizationState(credentials = credentials, pending = pending, account = account)
@@ -96,6 +96,7 @@ internal object CorosAuthorizationCodec {
         .putOptional("ticketStarted", value.ticketStarted)
         .putOptional("exchangeStarted", value.exchangeStarted)
 
+    private fun JSONObject.optionalObject(key: String): JSONObject? = if (has(key)) getJSONObject(key) else null
     private fun JSONObject.optionalString(key: String): String? = if (has(key)) getString(key) else null
     private fun JSONObject.optionalBoolean(key: String): Boolean? = if (has(key)) optBoolean(key) else null
     private fun JSONObject.putOptional(key: String, value: Any?): JSONObject = apply { if (value != null) put(key, value) }

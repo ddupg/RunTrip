@@ -9,6 +9,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -27,9 +28,17 @@ class CorosAuthorizationCodecTest {
         .put("expiresAt", Instant.parse("2026-11-01T15:00:00Z").epochSecond)
 
     private class Store(var json: JSONObject) : SourceStore {
+        var writes = 0
+        var clears = 0
         override fun read(id: DataSourceId) = JSONObject(json.toString())
-        override fun write(id: DataSourceId, value: JSONObject) { json = JSONObject(value.toString()) }
-        override fun clear(id: DataSourceId) { json = JSONObject() }
+        override fun write(id: DataSourceId, value: JSONObject) {
+            writes++
+            json = JSONObject(value.toString())
+        }
+        override fun clear(id: DataSourceId) {
+            clears++
+            json = JSONObject()
+        }
     }
 
     private fun assertJsonEquals(expected: JSONObject, actual: JSONObject) {
@@ -77,6 +86,36 @@ class CorosAuthorizationCodecTest {
             assertEquals(if (stage == "pending") 1 else 0, service.claims)
             assertEquals(1, service.tokenExchanges)
         }
+    }
+
+    @Test
+    fun `invalid section shapes remain storage errors without network or mutation`() = runTest {
+        for (section in listOf("credentials", "pending", "account")) {
+            for (invalid in listOf("damaged", JSONObject.NULL, JSONArray(), true)) {
+                val store = Store(JSONObject().put(section, invalid))
+                val original = store.json.toString()
+                var requests = 0
+                val transport = CorosHttpTransport { _, _, _, _ ->
+                    requests++
+                    error("Invalid stored state must not trigger a request")
+                }
+                val connector = CorosDataSourceConnector(store, CorosOAuthApi(transport),
+                    Clock.fixed(Instant.parse("2026-11-01T14:00:00Z"), ZoneOffset.UTC), StandardTestDispatcher(testScheduler))
+                assertEquals(SourceConnection.StorageError, connector.connection())
+                try { connector.beginAuthorization(); fail("Invalid stored state must not be overwritten") }
+                catch (_: org.json.JSONException) { }
+                try { connector.completeAuthorization(); fail("Invalid stored state must not be consumed") }
+                catch (_: org.json.JSONException) { }
+                assertEquals(0, requests)
+                assertEquals(0, store.writes)
+                assertEquals(0, store.clears)
+                assertEquals(original, store.json.toString())
+            }
+        }
+        val emptyStore = Store(JSONObject())
+        val connector = CorosDataSourceConnector(emptyStore, CorosOAuthApi(TestCorosService()),
+            Clock.fixed(Instant.parse("2026-11-01T14:00:00Z"), ZoneOffset.UTC), StandardTestDispatcher(testScheduler))
+        assertEquals(SourceConnection.Unbound, connector.connection())
     }
 
     @Test
