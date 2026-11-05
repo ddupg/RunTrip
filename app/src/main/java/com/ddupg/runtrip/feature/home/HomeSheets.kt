@@ -1,5 +1,6 @@
 package com.ddupg.runtrip.feature.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -219,6 +220,7 @@ internal fun QuickStatusSheet(
         confirmValueChange = { it != SheetValue.Hidden || !saving },
     )
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        BackHandler(enabled = isSaving) {}
         Column(
             modifier = Modifier
                 .fillMaxWidth()
