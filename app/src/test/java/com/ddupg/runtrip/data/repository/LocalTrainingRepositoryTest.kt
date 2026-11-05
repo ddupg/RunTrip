@@ -146,6 +146,86 @@ class LocalTrainingRepositoryTest {
         assertEquals(setOf("overlap", "gap"), later.observe(account).first().map { it.id }.toSet())
     }
 
+    @Test fun recentSplitFailureResumesAndContinuesHistoryAcrossYear() = runTest {
+        val source = Source()
+        var failed = false
+        source.read = { start, end, limit ->
+            when {
+                start == LocalDate.parse("2026-01-01") && end == LocalDate.parse("2026-11-02") -> List(limit) { record("truncated-$it", start) }
+                start.year == 2026 && start > LocalDate.parse("2026-01-01") && !failed -> { failed = true; throw IOException() }
+                else -> listOf(record("leaf-$start", start))
+            }
+        }
+        val repo = LocalTrainingRepository(db.trainingDao(), listOf(source), clock)
+        try { repo.update(account) {}; fail() } catch (_: IOException) { }
+        val checkpoint = db.trainingDao().importState("coros", account.accountId)!!
+        assertEquals("2025-12-31", checkpoint.nextHistoryEnd)
+        assertTrue(LocalDate.parse(checkpoint.lastRefreshDay) > LocalDate.parse("2026-01-01"))
+        assertEquals(1, repo.observe(account).first().size)
+        source.reads.clear()
+        val nextYear = Clock.fixed(Instant.parse("2027-01-02T12:00:00Z"), ZoneOffset.UTC)
+        val restored = LocalTrainingRepository(db.trainingDao(), listOf(source), nextYear)
+        restored.update(account) {}
+        assertEquals(LocalDate.parse(checkpoint.lastRefreshDay), source.reads.first().first)
+        assertTrue(source.reads.any { it.second == LocalDate.parse("2025-12-31") })
+        assertTrue(restored.historyComplete(account))
+    }
+
+    @Test fun historySplitFailureKeepsCompletedNewerLeafAndResumesBeforeIt() = runTest {
+        val source = Source()
+        var failed = false
+        source.read = { start, end, limit ->
+            when {
+                start == LocalDate.parse("2021-01-01") && end == LocalDate.parse("2025-12-31") -> List(limit) { record("truncated-$it", start) }
+                start == LocalDate.parse("2021-01-01") && !failed -> { failed = true; throw IOException() }
+                else -> listOf(record("leaf-$start", start))
+            }
+        }
+        val repo = LocalTrainingRepository(db.trainingDao(), listOf(source), clock)
+        try { repo.update(account) {}; fail() } catch (_: IOException) { }
+        val checkpoint = db.trainingDao().importState("coros", account.accountId)!!
+        val saved = repo.observe(account).first()
+        assertEquals(2, saved.size)
+        val newerDate = saved.map { it.sourceDate }.filter { it.year in 2021..2025 }.single()
+        assertEquals(newerDate.minusDays(1).toString(), checkpoint.nextHistoryEnd)
+        source.reads.clear()
+        LocalTrainingRepository(db.trainingDao(), listOf(source), clock).update(account) {}
+        assertEquals(LocalDate.parse(checkpoint.nextHistoryEnd), source.reads[1].second)
+        assertTrue(source.reads.drop(1).all { it.second < newerDate })
+    }
+
+    @Test fun cancellationAfterCompletedLeafKeepsCheckpointForRetry() = runTest {
+        val source = Source()
+        var cancelled = false
+        source.read = { start, end, limit ->
+            when {
+                start == LocalDate.parse("2026-01-01") && end == LocalDate.parse("2026-11-02") -> List(limit) { record("truncated-$it", start) }
+                start.year == 2026 && start > LocalDate.parse("2026-01-01") && !cancelled -> {
+                    cancelled = true
+                    throw kotlinx.coroutines.CancellationException("interrupted")
+                }
+                else -> listOf(record("leaf-$start", start))
+            }
+        }
+        val repo = LocalTrainingRepository(db.trainingDao(), listOf(source), clock)
+        try { repo.update(account) {}; fail() } catch (_: kotlinx.coroutines.CancellationException) { }
+        val checkpoint = db.trainingDao().importState("coros", account.accountId)!!
+        assertEquals(1, repo.observe(account).first().size)
+        source.reads.clear()
+        LocalTrainingRepository(db.trainingDao(), listOf(source), clock).update(account) {}
+        assertEquals(LocalDate.parse(checkpoint.lastRefreshDay), source.reads.first().first)
+    }
+
+    @Test fun historicalSubtypeLiteralsReadUnchanged() = runTest {
+        val dao = db.trainingDao()
+        val literals = listOf("OUTDOOR_RUN", "INDOOR_RUN", "TRAIL_RUN", "TRACK_RUN", "OUTDOOR_RIDE", "INDOOR_RIDE", "E_BIKE", "GRAVEL_RIDE", "MOUNTAIN_BIKE", "E_MOUNTAIN_BIKE", "HELMET_RIDE", "POOL_SWIM", "OPEN_WATER_SWIM")
+        dao.saveBatch(literals.map { com.ddupg.runtrip.data.local.TrainingActivityEntity("coros", account.accountId, it, it, "2026-01-01", null, null, 1) },
+            com.ddupg.runtrip.data.local.TrainingImportEntity("coros", account.accountId, null, "2026-11-02"))
+        val repo = LocalTrainingRepository(dao, listOf(Source()), clock)
+        assertEquals(literals.toSet(), repo.observe(account).first().map { it.subtype.code }.toSet())
+        assertTrue(repo.historyComplete(account))
+    }
+
     @Test fun switchingAccountDuringReadDoesNotSaveToEitherAccount() = runTest {
         val source = Source().apply { read = { start, _, _ -> account = "synthetic-b"; listOf(record("stale", start)) } }
         val repo = LocalTrainingRepository(db.trainingDao(), listOf(source), clock)

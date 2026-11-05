@@ -33,6 +33,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -53,14 +56,18 @@ fun TrainingRoute(repository: TrainingRepository, onConnect: () -> Unit) {
     val model: TrainingViewModel = viewModel(factory = TrainingViewModel.Factory(repository))
     val state by model.uiState.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
+    var zone by remember { mutableStateOf(ZoneId.systemDefault()) }
     DisposableEffect(lifecycleOwner, model) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) model.onResume()
+            if (event == Lifecycle.Event.ON_RESUME) {
+                zone = ZoneId.systemDefault()
+                model.onResume()
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    TrainingScreen(state, model::selectFilter, model::update, onConnect)
+    TrainingScreen(state, model::selectFilter, model::update, onConnect, zone)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,9 +77,9 @@ fun TrainingScreen(
     onFilter: (TrainingSport?) -> Unit,
     onUpdate: () -> Unit,
     onConnect: () -> Unit,
+    zone: ZoneId = ZoneId.systemDefault(),
 ) {
-    val zone = ZoneId.systemDefault()
-    val days = trainingDays(state.records, state.filter, zone)
+    val days = remember(state.records, state.filter, zone) { trainingDays(state.records, state.filter, zone) }
     Scaffold(topBar = {
         TopAppBar(
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
@@ -85,11 +92,11 @@ fun TrainingScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (state.connected) {
                 TrainingFilters(state.filter, onFilter)
-                state.progress?.let { text ->
+                state.progress?.let { progress ->
                     Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("正在获取 ${progress.start} 至 ${progress.end} 的记录…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

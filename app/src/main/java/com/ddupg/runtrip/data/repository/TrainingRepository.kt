@@ -23,7 +23,11 @@ interface TrainingRepository {
     suspend fun connectedAccount(): TrainingAccount?
     fun observe(account: TrainingAccount): Flow<List<TrainingActivity>>
     suspend fun historyComplete(account: TrainingAccount): Boolean
-    suspend fun update(account: TrainingAccount, onProgress: (String) -> Unit)
+    suspend fun update(account: TrainingAccount, onProgress: (TrainingImportProgress) -> Unit)
+}
+
+data class TrainingImportProgress(val phase: Phase, val start: LocalDate, val end: LocalDate) {
+    enum class Phase { RECENT, HISTORY }
 }
 
 class TrainingReadLimitReached : Exception()
@@ -44,7 +48,7 @@ class LocalTrainingRepository(
     }
 
     override fun observe(account: TrainingAccount) = dao.observe(account.source.code, account.accountId).map { rows ->
-        rows.map { TrainingActivity(it.activityId, TrainingSubtype.valueOf(it.subtypeCode), LocalDate.parse(it.sourceDate),
+        rows.map { TrainingActivity(it.activityId, TrainingSubtype.fromCode(it.subtypeCode), LocalDate.parse(it.sourceDate),
             it.startEpochSeconds, it.distanceMeters, it.durationSeconds) }
     }
 
@@ -53,24 +57,25 @@ class LocalTrainingRepository(
         return state != null && state.nextHistoryEnd == null
     }
 
-    override suspend fun update(account: TrainingAccount, onProgress: (String) -> Unit) = updateMutex.withLock {
+    override suspend fun update(account: TrainingAccount, onProgress: (TrainingImportProgress) -> Unit) = updateMutex.withLock {
         val source = sources.single { it.id == account.source }
         val today = LocalDate.now(clock)
         val previous = dao.importState(account.source.code, account.accountId)
         val recentStart = previous?.lastRefreshDay?.let(LocalDate::parse)?.coerceAtMost(today) ?: today.withDayOfYear(1)
-        val recent = readRange(source, account, recentStart, today, onProgress)
-        var state = TrainingImportEntity(account.source.code, account.accountId,
-            if (previous == null) today.withDayOfYear(1).minusDays(1).toString() else previous.nextHistoryEnd,
-            today.toString())
-        save(account, recent, state)
+        var state = previous ?: TrainingImportEntity(account.source.code, account.accountId,
+            today.withDayOfYear(1).minusDays(1).toString(), recentStart.toString())
+        readRange(source, account, recentStart, today, TrainingImportProgress.Phase.RECENT, onProgress) { _, end, records ->
+            state = state.copy(lastRefreshDay = end.toString())
+            save(account, records, state)
+        }
         while (state.nextHistoryEnd != null) {
             currentCoroutineContext().ensureActive()
             val end = LocalDate.parse(state.nextHistoryEnd)
-            // Bounded windows keep large empty ranges readable by the source; do not stop at an empty gap.
             val start = LocalDate.of((end.year - 4).coerceAtLeast(1970), 1, 1)
-            val records = readRange(source, account, start, end, onProgress)
-            state = state.copy(nextHistoryEnd = if (start.year == 1970) null else start.minusDays(1).toString())
-            save(account, records, state)
+            readRange(source, account, start, end, TrainingImportProgress.Phase.HISTORY, onProgress) { leafStart, _, records ->
+                state = state.copy(nextHistoryEnd = if (leafStart == LocalDate.of(1970, 1, 1)) null else leafStart.minusDays(1).toString())
+                save(account, records, state)
+            }
         }
     }
 
@@ -78,25 +83,39 @@ class LocalTrainingRepository(
         currentCoroutineContext().ensureActive()
         if (connectedAccount() != account) throw TrainingAccountChanged()
         dao.saveBatch(records.map {
-            TrainingActivityEntity(account.source.code, account.accountId, it.id, it.subtype.name,
+            TrainingActivityEntity(account.source.code, account.accountId, it.id, it.subtype.code,
                 it.sourceDate.toString(), it.startEpochSeconds, it.distanceMeters, it.durationSeconds)
         }, state)
     }
 
     private suspend fun readRange(
         source: TrainingDataSource, account: TrainingAccount, start: LocalDate, end: LocalDate,
-        onProgress: (String) -> Unit,
-    ): List<TrainingActivity> {
-        currentCoroutineContext().ensureActive()
-        onProgress("正在获取 $start 至 $end 的记录…")
-        val records = source.readTraining(account.accountId, start, end, READ_LIMIT)
-        if (records.size < READ_LIMIT) return records
-        // The API has no cursor. A full response can be truncated, so narrow the date range before saving.
+        phase: TrainingImportProgress.Phase, onProgress: (TrainingImportProgress) -> Unit,
+        saveLeaf: suspend (LocalDate, LocalDate, List<TrainingActivity>) -> Unit,
+    ) {
+        if (readAndSaveLeaf(source, account, start, end, phase, onProgress, saveLeaf)) return
         if (start == end) throw TrainingReadLimitReached()
         val middle = start.plusDays(ChronoUnit.DAYS.between(start, end) / 2)
-        val newer = readRange(source, account, middle.plusDays(1), end, onProgress)
-        val older = readRange(source, account, start, middle, onProgress)
-        return newer + older
+        if (phase == TrainingImportProgress.Phase.RECENT) {
+            readRange(source, account, start, middle, phase, onProgress, saveLeaf)
+            readRange(source, account, middle.plusDays(1), end, phase, onProgress, saveLeaf)
+        } else {
+            readRange(source, account, middle.plusDays(1), end, phase, onProgress, saveLeaf)
+            readRange(source, account, start, middle, phase, onProgress, saveLeaf)
+        }
+    }
+
+    private suspend fun readAndSaveLeaf(
+        source: TrainingDataSource, account: TrainingAccount, start: LocalDate, end: LocalDate,
+        phase: TrainingImportProgress.Phase, onProgress: (TrainingImportProgress) -> Unit,
+        saveLeaf: suspend (LocalDate, LocalDate, List<TrainingActivity>) -> Unit,
+    ): Boolean {
+        currentCoroutineContext().ensureActive()
+        onProgress(TrainingImportProgress(phase, start, end))
+        val records = source.readTraining(account.accountId, start, end, READ_LIMIT)
+        if (records.size >= READ_LIMIT) return false
+        saveLeaf(start, end, records)
+        return true
     }
 
     private companion object { const val READ_LIMIT = 1000 }

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.ddupg.runtrip.data.model.TrainingAccount
 import com.ddupg.runtrip.data.model.TrainingActivity
 import com.ddupg.runtrip.data.model.TrainingSport
+import com.ddupg.runtrip.data.repository.TrainingImportProgress
 import com.ddupg.runtrip.data.repository.TrainingReadLimitReached
 import com.ddupg.runtrip.data.repository.TrainingRepository
 import com.ddupg.runtrip.data.source.SourceAuthorizationExpired
@@ -24,7 +25,7 @@ data class TrainingUiState(
     val records: List<TrainingActivity> = emptyList(),
     val filter: TrainingSport? = null,
     val updating: Boolean = false,
-    val progress: String? = null,
+    val progress: TrainingImportProgress? = null,
     val error: String? = null,
 )
 
@@ -79,7 +80,7 @@ class TrainingViewModel(private val repository: TrainingRepository) : ViewModel(
         if (updating?.isActive == true) return
         if (!checkedAccount) return onResume()
         val current = account ?: return onResume()
-        mutableState.update { it.copy(updating = true, progress = "正在获取训练记录…", error = null) }
+        mutableState.update { it.copy(updating = true, progress = null, error = null) }
         updating = viewModelScope.launch {
             try {
                 repository.update(current) { progress -> mutableState.update { it.copy(progress = progress) } }

@@ -2,6 +2,7 @@ package com.ddupg.runtrip.feature.training
 
 import com.ddupg.runtrip.data.model.*
 import com.ddupg.runtrip.data.repository.TrainingRepository
+import com.ddupg.runtrip.data.repository.TrainingImportProgress
 import com.ddupg.runtrip.data.source.DataSourceId
 import com.ddupg.runtrip.data.source.SourceAuthorizationExpired
 import java.io.IOException
@@ -33,9 +34,9 @@ class TrainingViewModelTest {
         override suspend fun connectedAccount(): TrainingAccount? { checkGate?.await(); return account }
         override fun observe(account: TrainingAccount) = data.getOrPut(account.accountId) { MutableStateFlow(emptyList()) }
         override suspend fun historyComplete(account: TrainingAccount) = complete
-        override suspend fun update(account: TrainingAccount, onProgress: (String) -> Unit) {
+        override suspend fun update(account: TrainingAccount, onProgress: (TrainingImportProgress) -> Unit) {
             updates++
-            onProgress("正在获取示例记录…")
+            onProgress(TrainingImportProgress(TrainingImportProgress.Phase.RECENT, java.time.LocalDate.parse("2026-01-01"), java.time.LocalDate.parse("2026-01-02")))
             gate?.await()
             failure?.let { throw it }
             complete = true

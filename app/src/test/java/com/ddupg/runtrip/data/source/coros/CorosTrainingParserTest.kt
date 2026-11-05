@@ -67,6 +67,15 @@ class CorosTrainingParserTest {
         rejects(header(2) + record() + record().replace("1. Synthetic", "2. Synthetic"))
     }
 
+    @Test fun timestampMustBeSecondsAndAllowDifferentUtcDate() {
+        rejects(header() + record().replace("1790896200", Long.MAX_VALUE.toString()))
+        rejects(header() + record().replace("1790896200", "1790896200000"))
+        rejects(header() + record().replace("1790896200", "999999999999999999999999"))
+        assertEquals(0L, parse(header() + record().replace("1790896200", "0")).single().startEpochSeconds)
+        val crossZone = java.time.LocalDateTime.parse("2026-10-02T00:15:00").toEpochSecond(java.time.ZoneOffset.ofHours(14))
+        assertEquals(crossZone, parse(header() + record().replace("1790896200", crossZone.toString())).single().startEpochSeconds)
+    }
+
     @Test fun labelIdentityIncludesSportType() {
         val records = parse(header(2) + record() + record(101).replace("1. Synthetic", "2. Synthetic"))
         assertEquals(2, records.map { it.id }.toSet().size)
