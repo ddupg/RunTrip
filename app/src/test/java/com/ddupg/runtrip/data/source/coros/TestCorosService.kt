@@ -10,10 +10,12 @@ internal class TestCorosService : CorosHttpTransport {
     var trainingArguments: JSONObject? = null
     var trainingText = ""
     var trainingUnauthorized = false
+    var rejectOldTrainingToken = false
     var authorized = false
     var wrongState = false
     var profileFails = false
     var invalidRefresh = false
+    var exchangeFails = false
     var nickname = "Synthetic Runner"
     var sse = false
     var issuer = "https://mcpcn.coros.com"
@@ -29,7 +31,7 @@ internal class TestCorosService : CorosHttpTransport {
         URLDecoder.decode(pair[0], "UTF-8") to URLDecoder.decode(pair.getOrElse(1) { "" }, "UTF-8")
     }
 
-    override fun request(method: String, url: String, headers: Map<String, String>, body: String?): CorosHttpResponse {
+    override suspend fun request(method: String, url: String, headers: Map<String, String>, body: String?): CorosHttpResponse {
         val uri = URI(url)
         val json = when (uri.path) {
             "/.well-known/openid-configuration" -> JSONObject().put("issuer", issuer)
@@ -59,6 +61,7 @@ internal class TestCorosService : CorosHttpTransport {
                 when (params["grant_type"]) {
                     "authorization_code" -> {
                         tokenExchanges++
+                        if (exchangeFails) throw java.io.IOException("response lost")
                         lastVerifier = params["code_verifier"]
                         check(params["code"] == "synthetic-code")
                     }
@@ -87,7 +90,7 @@ internal class TestCorosService : CorosHttpTransport {
                                 "Nickname: $nickname\nHeight: 180 cm\n"
                             }
                             "querySportRecords" -> {
-                                if (trainingUnauthorized) return CorosHttpResponse(401, "")
+                                if (trainingUnauthorized || (rejectOldTrainingToken && headers["Authorization"] == "Bearer synthetic-access-0")) return CorosHttpResponse(401, "")
                                 trainingArguments = params.getJSONObject("arguments")
                                 trainingText
                             }

@@ -34,6 +34,7 @@ fun accountLabel(account: SourceAccount): String = account.name?.trim()?.takeIf 
 
 fun connectionLabel(connection: SourceConnection): String = when (connection) {
     SourceConnection.Unbound -> "未绑定"
+    SourceConnection.StorageError -> "连接信息无法读取"
     is SourceConnection.Authorizing -> "等待完成授权"
     is SourceConnection.Bound -> accountLabel(connection.account)
 }
@@ -94,7 +95,7 @@ class MeViewModel(private val connectors: List<DataSourceConnector>) : ViewModel
         resumePending = false
         perform {
             reload()
-            connectors.forEach { source ->
+            connectors.filter { source -> mutableState.value.sources.single { it.id == source.id }.connection != SourceConnection.StorageError }.forEach { source ->
                 try {
                     source.completeAuthorization()
                 } catch (expired: SourceAuthorizationExpired) {

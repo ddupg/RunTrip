@@ -97,6 +97,13 @@ fun MeRoute(connectors: List<DataSourceConnector>) {
                 },
                 dismissButton = { TextButton(onClick = { model.disconnect(id) }) { Text("取消连接") } },
             )
+            SourceConnection.StorageError -> AlertDialog(
+                onDismissRequest = model::dismissSource,
+                title = { Text("重置${sourceLabel(id)}连接？") },
+                text = { Text("连接信息无法读取。重置将清除此手机上的${sourceLabel(id)}授权信息，保留本地训练记录。") },
+                confirmButton = { TextButton(onClick = { model.disconnect(id) }) { Text("重置连接") } },
+                dismissButton = { TextButton(onClick = model::dismissSource) { Text("取消") } },
+            )
             SourceConnection.Unbound -> Unit
         }
     }

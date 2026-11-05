@@ -125,7 +125,7 @@ class CorosDataSourceConnectorTest {
     }
 
     @Test
-    fun `discovery cannot send credentials to an unrelated host`() {
+    fun `discovery cannot send credentials to an unrelated host`() = runTest {
         val service = TestCorosService().apply { issuer = "https://untrusted.example" }
         try { CorosOAuthApi(service).discoverIssuer(); fail("Untrusted issuer") } catch (_: SourceProtocolException) { }
         assertEquals(0, service.registrations)
@@ -161,7 +161,7 @@ class CorosDataSourceConnectorTest {
     }
 
     @Test
-    fun `training unauthorized clears the local connection`() = runTest {
+    fun `training unauthorized retries once and preserves connection`() = runTest {
         val store = Store()
         val service = TestCorosService().apply { authorized = true; trainingUnauthorized = true }
         val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
@@ -169,9 +169,57 @@ class CorosDataSourceConnectorTest {
         connector.completeAuthorization()
         try {
             connector.readTraining("synthetic-account-id", java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-31"), 1000)
-            fail("Revoked credential must not stay bound")
-        } catch (_: SourceAuthorizationExpired) { }
-        assertNull(store.json)
+            fail("Repeated rejection must be reported")
+        } catch (_: CorosAccessTokenRejected) { }
+        assertEquals(1, service.refreshes)
+        assertTrue(connector.connection() is SourceConnection.Bound)
+    }
+
+    @Test
+    fun `rejected access token rotates once and retries training`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply {
+            authorized = true
+            rejectOldTrainingToken = true
+            trainingText = "No sport records found from 2026-10-01 to 2026-10-31."
+        }
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        connector.beginAuthorization()
+        connector.completeAuthorization()
+        assertTrue(connector.readTraining("synthetic-account-id", java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-31"), 1000).isEmpty())
+        assertEquals(1, service.refreshes)
+        assertTrue(store.json!!.contains("synthetic-refresh-1"))
+    }
+
+    @Test
+    fun `corrupt credentials expose reset without silently clearing`() = runTest {
+        var cleared = false
+        val store = object : SourceStore {
+            override fun read(id: DataSourceId): JSONObject? {
+                if (!cleared) throw com.ddupg.runtrip.data.source.SourceStoreReadException(IllegalStateException())
+                return null
+            }
+            override fun write(id: DataSourceId, value: JSONObject) = error("must not write")
+            override fun clear(id: DataSourceId) { cleared = true }
+        }
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(TestCorosService()), clock, StandardTestDispatcher(testScheduler))
+        assertEquals(SourceConnection.StorageError, connector.connection())
+        assertFalse(cleared)
+        connector.disconnect()
+        assertEquals(SourceConnection.Unbound, connector.connection())
+    }
+
+    @Test
+    fun `lost exchange response does not replay one time authorization code`() = runTest {
+        val service = TestCorosService().apply { authorized = true; exchangeFails = true }
+        val connector = CorosDataSourceConnector(Store(), CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        connector.beginAuthorization()
+        try { connector.completeAuthorization(); fail("exchange should fail") } catch (_: java.io.IOException) { }
+        service.exchangeFails = false
+        try { connector.completeAuthorization(); fail("must not replay") } catch (_: SourceProtocolException) { }
+        assertEquals(1, service.tokenExchanges)
+        connector.disconnect()
+        assertEquals(SourceConnection.Unbound, connector.connection())
     }
 
     @Test
