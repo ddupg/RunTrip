@@ -3,6 +3,7 @@ package com.ddupg.runtrip.feature.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.repository.RaceMutationResult
 import com.ddupg.runtrip.data.repository.RaceRepository
@@ -11,45 +12,68 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel(
     private val repository: RaceRepository,
     daySource: DaySource = SystemDaySource(),
 ) : ViewModel() {
     private val controls = MutableStateFlow(HomeControls())
 
-    val uiState: StateFlow<HomeUiState> = combine(
-        repository.observeRaces(),
-        daySource.observeToday(),
-        controls,
-    ) { races, today, currentControls ->
-        HomeUiState(
+    private val reload = MutableStateFlow(0)
+    private val data = reload.flatMapLatest {
+        flow {
+            emitAll(combine(repository.observeRaces(), daySource.observeToday()) { races, today ->
+                HomeData.Ready(races, today) as HomeData
+            })
+        }.onStart { emit(HomeData.Loading) }
+            .onEach { result ->
+                if (result is HomeData.Ready) {
+                    controls.update { current ->
+                        val selected = current.quickStatusRace ?: return@update current
+                        val latest = result.races.firstOrNull { it.id == selected.id }
+                        if (latest == null) {
+                            current.copy(quickStatusRace = null, quickStatusUpdate = QuickStatusUpdate.Idle)
+                        } else {
+                            current.copy(quickStatusRace = latest)
+                        }
+                    }
+                }
+            }
+            .catch { error ->
+                if (error is CancellationException) throw error
+                emit(HomeData.Failed)
+            }
+    }
+
+    val uiState: StateFlow<HomeUiState> = combine(data, controls) { data, currentControls ->
+        val base = HomeUiState(
             section = currentControls.section,
             filter = currentControls.filter,
-            sectionRaceCount = countRacesInSection(
-                races = races,
-                section = currentControls.section,
-                today = today,
-            ),
-            monthGroups = buildRaceMonthGroups(
-                races = races,
-                section = currentControls.section,
-                filter = currentControls.filter,
-                today = today,
-            ),
-            quickStatusRace = currentControls.quickStatusRaceId?.let { selectedId ->
-                races.firstOrNull { it.id == selectedId }
-            },
             quickStatusUpdate = currentControls.quickStatusUpdate,
+            quickStatusRace = currentControls.quickStatusRace,
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = HomeUiState(),
-    )
+        when (data) {
+            HomeData.Loading -> base.copy(isLoading = true)
+            HomeData.Failed -> base.copy(loadError = "加载比赛失败，请重试")
+            is HomeData.Ready -> base.copy(
+                sectionRaceCount = countRacesInSection(data.races, currentControls.section, data.today),
+                monthGroups = buildRaceMonthGroups(data.races, currentControls.section, currentControls.filter, data.today),
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState(isLoading = true))
+
+    fun retryLoad() { reload.update { it + 1 } }
 
     fun selectSection(section: RaceSection) {
         controls.update { it.copy(section = section) }
@@ -60,12 +84,14 @@ class HomeViewModel(
     }
 
     fun openQuickStatus(raceId: String) {
+        val race = uiState.value.monthGroups.asSequence().flatMap { it.races.asSequence() }
+            .firstOrNull { it.id == raceId } ?: return
         controls.update { current ->
             if (current.quickStatusUpdate is QuickStatusUpdate.Saving) {
                 current
             } else {
                 current.copy(
-                    quickStatusRaceId = raceId,
+                    quickStatusRace = race,
                     quickStatusUpdate = QuickStatusUpdate.Idle,
                 )
             }
@@ -78,7 +104,7 @@ class HomeViewModel(
                 current
             } else {
                 current.copy(
-                    quickStatusRaceId = null,
+                    quickStatusRace = null,
                     quickStatusUpdate = QuickStatusUpdate.Idle,
                 )
             }
@@ -87,7 +113,7 @@ class HomeViewModel(
 
     fun updateQuickStatus(status: RaceStatus) {
         val current = controls.value
-        val raceId = current.quickStatusRaceId ?: return
+        val raceId = current.quickStatusRace?.id ?: return
         if (current.quickStatusUpdate is QuickStatusUpdate.Saving) return
 
         controls.update {
@@ -106,12 +132,12 @@ class HomeViewModel(
             }
 
             controls.update { latest ->
-                if (latest.quickStatusRaceId != raceId) {
+                if (latest.quickStatusRace?.id != raceId) {
                     latest
                 } else {
                     when (updateResult) {
                         QuickStatusResult.Success -> latest.copy(
-                            quickStatusRaceId = null,
+                            quickStatusRace = null,
                             quickStatusUpdate = QuickStatusUpdate.Idle,
                         )
 
@@ -146,7 +172,7 @@ class HomeViewModel(
 private data class HomeControls(
     val section: RaceSection = RaceSection.UPCOMING,
     val filter: RaceFilter = RaceFilter(),
-    val quickStatusRaceId: String? = null,
+    val quickStatusRace: Race? = null,
     val quickStatusUpdate: QuickStatusUpdate = QuickStatusUpdate.Idle,
 )
 
@@ -154,4 +180,10 @@ private enum class QuickStatusResult {
     Success,
     RaceMissing,
     Failed,
+}
+
+private sealed interface HomeData {
+    data object Loading : HomeData
+    data object Failed : HomeData
+    data class Ready(val races: List<com.ddupg.runtrip.data.model.Race>, val today: java.time.LocalDate) : HomeData
 }

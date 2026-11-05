@@ -6,11 +6,12 @@ import com.ddupg.runtrip.data.model.WorldAthleticsLabel
 import com.ddupg.runtrip.ui.presentation.RaceLabelDensity
 import com.ddupg.runtrip.ui.presentation.RacePresentation
 
-internal fun LazyListScope.roadRunningFields(draft: RoadRunningDraft, onChange: (RoadRunningDraft) -> Unit) {
+internal fun LazyListScope.roadRunningFields(draft: RoadRunningDraft, enabled: Boolean, onChange: (RoadRunningDraft) -> Unit) {
     item { SectionDivider() }
     item { FormSectionTitle("赛事等级", "选填") }
     item {
         OptionalChoiceChips(
+            enabled = enabled,
             label = "中国田协等级",
             values = CaaRaceLevel.entries,
             selected = draft.caaRaceLevel,
@@ -21,6 +22,7 @@ internal fun LazyListScope.roadRunningFields(draft: RoadRunningDraft, onChange: 
     }
     item {
         OptionalChoiceChips(
+            enabled = enabled,
             label = "World Athletics Label",
             values = WorldAthleticsLabel.entries,
             selected = draft.worldAthleticsLabel,

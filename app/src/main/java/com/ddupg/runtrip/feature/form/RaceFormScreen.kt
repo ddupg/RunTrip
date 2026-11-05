@@ -1,5 +1,6 @@
 package com.ddupg.runtrip.feature.form
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -95,6 +96,7 @@ fun RaceFormRoute(
         onBack = onBack,
         onDraftChange = viewModel::updateDraft,
         onSave = viewModel::save,
+        onRetry = viewModel::retryLoad,
     )
 }
 
@@ -106,16 +108,18 @@ fun RaceFormScreen(
     onBack: () -> Unit,
     onDraftChange: (RaceDraft) -> Unit,
     onSave: () -> Unit,
+    onRetry: () -> Unit = {},
 ) {
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
     val draft = uiState.draft
+    BackHandler(enabled = uiState.isSaving) {}
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(if (isEditing) "编辑比赛" else "添加比赛") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, enabled = !uiState.isSaving) {
                         Icon(Icons.Outlined.ArrowBack, contentDescription = "返回")
                     }
                 },
@@ -160,7 +164,10 @@ fun RaceFormScreen(
                         .padding(24.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(uiState.loadError)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(uiState.loadError)
+                        TextButton(onClick = onRetry) { Text("重试") }
+                    }
                 }
             }
 
@@ -298,6 +305,7 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
+                    enabled = !uiState.isSaving,
                     value = draft.name,
                     onValueChange = { value ->
                         onDraftChange(draft.copy(name = value))
@@ -317,6 +325,7 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
+                    enabled = !uiState.isSaving,
                     value = RacePresentation.date(
                         draft.raceDate,
                         RaceDateStyle.DATE_ONLY,
@@ -324,11 +333,11 @@ private fun RaceFormContent(
                     onValueChange = {},
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = onOpenDatePicker),
+                        .clickable(enabled = !uiState.isSaving, onClick = onOpenDatePicker),
                     readOnly = true,
                     label = { Text("比赛日期") },
                     trailingIcon = {
-                        IconButton(onClick = onOpenDatePicker) {
+                        IconButton(onClick = onOpenDatePicker, enabled = !uiState.isSaving) {
                             Icon(Icons.Outlined.CalendarMonth, contentDescription = "选择比赛日期")
                         }
                     },
@@ -337,6 +346,7 @@ private fun RaceFormContent(
         }
         item {
             ChoiceChips(
+                enabled = !uiState.isSaving,
                 label = "运动大类",
                 values = SportType.entries,
                 selected = draft.sportType,
@@ -349,6 +359,7 @@ private fun RaceFormContent(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     ChoiceChips(
+                        enabled = !uiState.isSaving,
                         label = "比赛项目",
                         values = RacePresentation.categories(draft.sportType),
                         selected = draft.activeSportDraft.category,
@@ -362,6 +373,7 @@ private fun RaceFormContent(
         }
         item {
             ChoiceChips(
+                enabled = !uiState.isSaving,
                 label = "参赛状态",
                 values = RaceStatus.entries,
                 selected = draft.status,
@@ -373,12 +385,13 @@ private fun RaceFormContent(
             )
         }
 
-        sportFields(draft.activeSportDraft, uiState.errors.sportFields) { onDraftChange(draft.withSportDraft(it)) }
+        sportFields(draft.activeSportDraft, uiState.errors.sportFields, !uiState.isSaving) { onDraftChange(draft.withSportDraft(it)) }
         item { SectionDivider() }
         item { FormSectionTitle("路程", "选填") }
         item {
             RunTripControlTheme {
                 OutlinedTextField(
+                    enabled = !uiState.isSaving,
                     value = draft.travelDistance,
                     onValueChange = { value ->
                         onDraftChange(draft.copy(travelDistance = value))
@@ -401,6 +414,7 @@ private fun RaceFormContent(
         item { FormSectionTitle("住宿", "选填") }
         item {
             ChoiceChips(
+                enabled = !uiState.isSaving,
                 label = "预订状态",
                 values = HotelBookingStatus.entries,
                 selected = draft.hotelBookingStatus,
@@ -414,6 +428,7 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
+                    enabled = !uiState.isSaving,
                     value = draft.hotelName,
                     onValueChange = { value ->
                         onDraftChange(draft.copy(hotelName = value))
@@ -428,6 +443,7 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
+                    enabled = !uiState.isSaving,
                     value = draft.bookingPlatform,
                     onValueChange = { value ->
                         onDraftChange(draft.copy(bookingPlatform = value))
@@ -442,6 +458,7 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
+                    enabled = !uiState.isSaving,
                     value = draft.hotelPrice,
                     onValueChange = { value ->
                         onDraftChange(draft.copy(hotelPrice = value))
@@ -462,6 +479,7 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
+                    enabled = !uiState.isSaving,
                     value = draft.hotelNotes,
                     onValueChange = { value ->
                         onDraftChange(draft.copy(hotelNotes = value))
@@ -478,6 +496,7 @@ private fun RaceFormContent(
         item {
             RunTripControlTheme {
                 OutlinedTextField(
+                    enabled = !uiState.isSaving,
                     value = draft.raceNotes,
                     onValueChange = { value ->
                         onDraftChange(draft.copy(raceNotes = value))
@@ -538,6 +557,7 @@ internal fun <T> ChoiceChips(
     key: (T) -> String,
     displayName: (T) -> String,
     onSelected: (T) -> Unit,
+    enabled: Boolean = true,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Text(
@@ -548,6 +568,7 @@ internal fun <T> ChoiceChips(
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(values, key = key) { value ->
                 RunTripFilterChip(
+                    enabled = enabled,
                     selected = value == selected,
                     onClick = { onSelected(value) },
                     label = displayName(value),
@@ -565,6 +586,7 @@ internal fun <T> OptionalChoiceChips(
     key: (T) -> String,
     displayName: (T) -> String,
     onSelected: (T?) -> Unit,
+    enabled: Boolean = true,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Text(
@@ -575,6 +597,7 @@ internal fun <T> OptionalChoiceChips(
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
                 RunTripFilterChip(
+                    enabled = enabled,
                     selected = selected == null,
                     onClick = { onSelected(null) },
                     label = RacePresentation.missing().text,
@@ -582,6 +605,7 @@ internal fun <T> OptionalChoiceChips(
             }
             items(values, key = key) { value ->
                 RunTripFilterChip(
+                    enabled = enabled,
                     selected = value == selected,
                     onClick = { onSelected(value) },
                     label = displayName(value),

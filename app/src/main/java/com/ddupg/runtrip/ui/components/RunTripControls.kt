@@ -38,9 +38,11 @@ internal fun RunTripFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
     label: String,
+    enabled: Boolean = true,
 ) {
     val colors = MaterialTheme.colorScheme
     FilterChip(
+        enabled = enabled,
         selected = selected,
         onClick = onClick,
         label = { Text(label) },

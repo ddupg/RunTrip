@@ -18,28 +18,34 @@ class RaceFormViewModel(
     private val raceId: String?,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
-        RaceFormUiState(isLoading = raceId != null),
+        RaceFormUiState(),
     )
     val uiState: StateFlow<RaceFormUiState> = _uiState.asStateFlow()
 
-    init {
-        if (raceId != null) {
-            viewModelScope.launch {
-                val race = repository.observeRace(raceId).first()
+    init { if (raceId != null) retryLoad() }
+
+    fun retryLoad() {
+        val id = raceId ?: return
+        if (_uiState.value.isLoading) return
+        _uiState.update { it.copy(isLoading = true, loadError = null) }
+        viewModelScope.launch {
+            try {
+                val race = repository.observeRace(id).first()
                 _uiState.value = if (race == null) {
-                    RaceFormUiState(
-                        isLoading = false,
-                        loadError = "没有找到这条比赛记录",
-                    )
+                    RaceFormUiState(loadError = "没有找到这条比赛记录")
                 } else {
                     RaceFormUiState(draft = race.toDraft())
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isLoading = false, loadError = "加载比赛失败，请重试") }
             }
         }
     }
 
     fun updateDraft(draft: RaceDraft) {
-        _uiState.update { state -> state.withDraft(draft) }
+        _uiState.update { state -> if (state.isSaving || state.isSaveComplete) state else state.withDraft(draft) }
     }
 
     fun resetNewRace() {
@@ -50,7 +56,7 @@ class RaceFormViewModel(
 
     fun save() {
         val currentState = _uiState.value
-        if (currentState.isSaving || currentState.isSaveComplete) return
+        if (currentState.isSaving || currentState.isSaveComplete || currentState.isLoading || currentState.loadError != null) return
 
         val validation = validateRaceForm(currentState.draft)
         if (validation.input == null) {
