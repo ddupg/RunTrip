@@ -13,6 +13,7 @@ import com.ddupg.runtrip.ui.components.RunTripControlTheme
 internal fun LazyListScope.trailRunningFields(
     draft: TrailRunningDraft,
     errors: Map<String, String>,
+    enabled: Boolean,
     onChange: (TrailRunningDraft) -> Unit,
 ) {
     item { SectionDivider() }
@@ -20,6 +21,7 @@ internal fun LazyListScope.trailRunningFields(
     item {
         RunTripControlTheme {
             OutlinedTextField(
+                enabled = enabled,
                 value = draft.distance,
                 onValueChange = { onChange(draft.copy(distance = it)) },
                 label = { Text("比赛距离") },
@@ -35,6 +37,7 @@ internal fun LazyListScope.trailRunningFields(
     item {
         RunTripControlTheme {
             OutlinedTextField(
+                enabled = enabled,
                 value = draft.elevationGain,
                 onValueChange = { onChange(draft.copy(elevationGain = it)) },
                 label = { Text("累计爬升（选填）") },

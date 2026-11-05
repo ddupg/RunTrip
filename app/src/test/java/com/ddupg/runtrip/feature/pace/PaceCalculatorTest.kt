@@ -76,6 +76,15 @@ class PaceCalculatorTest {
     }
 
     @Test
+    fun `bounds custom distance and generated splits`() {
+        assertEquals(1000.0, requireNotNull(parseCustomDistance("1000")), 0.0)
+        assertEquals(200, requireNotNull(calculatePace(1000.0, 3600)).splits.size)
+        assertNull(parseCustomDistance("1000.1"))
+        assertNull(calculatePace(1000.1, 3600))
+        assertNull(calculatePace(1_000_000_000.0, 3600))
+    }
+
+    @Test
     fun `formats pace elapsed time and distances`() {
         assertEquals("4′59″", formatPace(299L))
         assertEquals("每公里 4 分 59 秒", formatPaceContentDescription(299L))

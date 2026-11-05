@@ -3,6 +3,7 @@ package com.ddupg.runtrip.feature.pace
 import java.math.BigDecimal
 import kotlin.math.roundToLong
 
+internal const val MAX_PACE_DISTANCE_KM = 1000.0
 internal const val MARATHON_DISTANCE_KM = 42.195
 internal const val HALF_MARATHON_DISTANCE_KM = 21.0975
 
@@ -32,7 +33,7 @@ internal fun calculatePace(
     distanceKm: Double,
     finishTimeSeconds: Long,
 ): PaceCalculation? {
-    if (!distanceKm.isFinite() || distanceKm <= 0.0 || finishTimeSeconds <= 0L) {
+    if (!distanceKm.isFinite() || (distanceKm <= 0.0 || distanceKm > MAX_PACE_DISTANCE_KM) || finishTimeSeconds <= 0L) {
         return null
     }
 
@@ -90,4 +91,4 @@ internal fun formatPaceDistance(distanceKm: Double): String =
     BigDecimal.valueOf(distanceKm).stripTrailingZeros().toPlainString()
 
 internal fun parseCustomDistance(value: String): Double? =
-    value.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 }
+    value.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 && it <= MAX_PACE_DISTANCE_KM }

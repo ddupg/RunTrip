@@ -11,36 +11,50 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class RaceDetailUiState(
     val race: Race? = null,
     val isLoading: Boolean = true,
+    val loadError: String? = null,
     val isDeleting: Boolean = false,
     val isDeleteComplete: Boolean = false,
     val deleteError: String? = null,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RaceDetailViewModel(
     private val repository: RaceRepository,
     private val raceId: String,
 ) : ViewModel() {
     private val operationState = MutableStateFlow(RaceDetailUiState())
 
-    val uiState: StateFlow<RaceDetailUiState> = combine(
-        repository.observeRace(raceId),
-        operationState,
-    ) { race, operations ->
-        operations.copy(
-            race = race,
-            isLoading = false,
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = RaceDetailUiState(),
-    )
+    private val reload = MutableStateFlow(0)
+    private val data = reload.flatMapLatest {
+        flow { emitAll(repository.observeRace(raceId).map { DetailData.Ready(it) as DetailData }) }
+            .onStart { emit(DetailData.Loading) }
+            .catch { error ->
+                if (error is CancellationException) throw error
+                emit(DetailData.Failed)
+            }
+    }
+    val uiState: StateFlow<RaceDetailUiState> = combine(data, operationState) { data, operations ->
+        when (data) {
+            DetailData.Loading -> operations.copy(isLoading = true)
+            DetailData.Failed -> operations.copy(isLoading = false, loadError = "加载比赛失败，请重试")
+            is DetailData.Ready -> operations.copy(race = data.race, isLoading = false)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RaceDetailUiState())
+
+    fun retryLoad() { reload.update { it + 1 } }
 
     fun deleteRace() {
         val currentState = operationState.value
@@ -79,4 +93,10 @@ class RaceDetailViewModel(
             return RaceDetailViewModel(repository, raceId) as T
         }
     }
+}
+
+private sealed interface DetailData {
+    data object Loading : DetailData
+    data object Failed : DetailData
+    data class Ready(val race: Race?) : DetailData
 }

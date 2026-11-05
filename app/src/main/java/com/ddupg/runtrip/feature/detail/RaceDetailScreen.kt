@@ -92,6 +92,7 @@ fun RaceDetailRoute(
         onBack = onBack,
         onEdit = onEdit,
         onDelete = viewModel::deleteRace,
+        onRetry = viewModel::retryLoad,
     )
 }
 
@@ -102,6 +103,7 @@ fun RaceDetailScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onRetry: () -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -167,6 +169,13 @@ fun RaceDetailScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator()
+                }
+            }
+
+            uiState.loadError != null -> {
+                Column(Modifier.fillMaxSize().padding(innerPadding), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Text(uiState.loadError)
+                    TextButton(onClick = onRetry) { Text("重试") }
                 }
             }
 

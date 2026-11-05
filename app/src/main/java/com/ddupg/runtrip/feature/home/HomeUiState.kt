@@ -17,6 +17,8 @@ data class RaceMonthGroup(
 )
 
 data class HomeUiState(
+    val isLoading: Boolean = false,
+    val loadError: String? = null,
     val section: RaceSection = RaceSection.UPCOMING,
     val filter: RaceFilter = RaceFilter(),
     val sectionRaceCount: Int = 0,

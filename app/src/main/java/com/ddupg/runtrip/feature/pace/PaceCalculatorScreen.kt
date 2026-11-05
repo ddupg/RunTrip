@@ -88,10 +88,12 @@ fun PaceCalculatorScreen(
         null -> null
         else -> selectedPreset?.distanceKm
     }
-    val calculation = if (distanceKm != null && finishTimeSeconds != null) {
-        calculatePace(distanceKm, finishTimeSeconds = requireNotNull(finishTimeSeconds))
-    } else {
-        null
+    val calculation = remember(distanceKm, finishTimeSeconds) {
+        if (distanceKm != null && finishTimeSeconds != null) {
+            calculatePace(distanceKm, finishTimeSeconds = requireNotNull(finishTimeSeconds))
+        } else {
+            null
+        }
     }
 
     Scaffold(
@@ -208,7 +210,7 @@ private fun DistanceInput(
                     singleLine = true,
                     isError = showError,
                     supportingText = if (showError) {
-                        { Text("请输入大于 0 的公里数") }
+                        { Text("请输入大于 0 且不超过 1000 的公里数") }
                     } else {
                         null
                     },

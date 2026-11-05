@@ -112,6 +112,7 @@ fun HomeRoute(
         onAddRace = { showAddRaceSheet = true },
         onOpenRace = onOpenRace,
         onQuickStatus = viewModel::openQuickStatus,
+        onRetry = viewModel::retryLoad,
     )
 
     if (showAddRaceSheet) {
@@ -149,6 +150,7 @@ fun HomeScreen(
     onAddRace: () -> Unit,
     onOpenRace: (String) -> Unit,
     onQuickStatus: (String) -> Unit,
+    onRetry: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -168,7 +170,14 @@ fun HomeScreen(
             )
         },
     ) { innerPadding ->
-        if (uiState.monthGroups.isEmpty()) {
+        if (uiState.isLoading || uiState.loadError != null) {
+            Column(Modifier.fillMaxSize().padding(innerPadding), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                if (uiState.isLoading) CircularProgressIndicator() else {
+                    Text(requireNotNull(uiState.loadError))
+                    TextButton(onClick = onRetry) { Text("重试") }
+                }
+            }
+        } else if (uiState.monthGroups.isEmpty()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
