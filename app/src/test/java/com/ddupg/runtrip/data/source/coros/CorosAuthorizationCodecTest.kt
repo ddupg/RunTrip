@@ -80,7 +80,7 @@ class CorosAuthorizationCodecTest {
             if (stage == "code") pending.put("code", "synthetic-code")
             val store = Store(JSONObject().put("pending", pending))
             val service = TestCorosService().apply { authorized = true }
-            val connector = CorosDataSourceConnector(store, CorosOAuthApi(service),
+            val connector = CorosDataSourceConnector(store, CorosRequestClient(service),
                 Clock.fixed(Instant.parse("2026-11-01T14:00:00Z"), ZoneOffset.UTC), StandardTestDispatcher(testScheduler))
             assertTrue(connector.completeAuthorization() is SourceConnection.Bound)
             assertEquals(if (stage == "pending") 1 else 0, service.claims)
@@ -99,7 +99,7 @@ class CorosAuthorizationCodecTest {
                     requests++
                     error("Invalid stored state must not trigger a request")
                 }
-                val connector = CorosDataSourceConnector(store, CorosOAuthApi(transport),
+                val connector = CorosDataSourceConnector(store, CorosRequestClient(transport),
                     Clock.fixed(Instant.parse("2026-11-01T14:00:00Z"), ZoneOffset.UTC), StandardTestDispatcher(testScheduler))
                 assertEquals(SourceConnection.StorageError, connector.connection())
                 try { connector.beginAuthorization(); fail("Invalid stored state must not be overwritten") }
@@ -113,7 +113,7 @@ class CorosAuthorizationCodecTest {
             }
         }
         val emptyStore = Store(JSONObject())
-        val connector = CorosDataSourceConnector(emptyStore, CorosOAuthApi(TestCorosService()),
+        val connector = CorosDataSourceConnector(emptyStore, CorosRequestClient(TestCorosService()),
             Clock.fixed(Instant.parse("2026-11-01T14:00:00Z"), ZoneOffset.UTC), StandardTestDispatcher(testScheduler))
         assertEquals(SourceConnection.Unbound, connector.connection())
     }
@@ -126,7 +126,7 @@ class CorosAuthorizationCodecTest {
             if (stage == "exchangeStarted") pending.put("code", "synthetic-code")
             val store = Store(JSONObject().put("pending", pending))
             val service = TestCorosService().apply { authorized = true }
-            val connector = CorosDataSourceConnector(store, CorosOAuthApi(service),
+            val connector = CorosDataSourceConnector(store, CorosRequestClient(service),
                 Clock.fixed(Instant.parse("2026-11-01T14:00:00Z"), ZoneOffset.UTC), StandardTestDispatcher(testScheduler))
             assertEquals(SourceConnection.AuthorizationRestartRequired, connector.connection())
             try { connector.completeAuthorization(); fail("Started stage must not be replayed") }

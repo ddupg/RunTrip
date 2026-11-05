@@ -24,11 +24,13 @@ import org.json.JSONObject
 
 internal class CorosDataSourceConnector(
     private val store: SourceStore,
-    private val api: CorosOAuthApi = CorosOAuthApi(),
+    requestClient: CorosRequestClient = CorosRequestClient(),
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : TrainingDataSource {
     override val id = DataSourceId.COROS
+    private val api = CorosOAuthApi(requestClient)
+    private val mcp = CorosMcpApi(requestClient)
     private val mutex = Mutex()
 
     private fun snapshot(): CorosAuthorizationState = CorosAuthorizationCodec.decode(store.read(id) ?: JSONObject())
@@ -154,13 +156,13 @@ internal class CorosDataSourceConnector(
         if (value.account == null) {
             currentCoroutineContext().ensureActive()
             val account = try {
-                api.account(credentials.issuer, credentials.accessToken)
+                mcp.account(credentials.issuer, credentials.accessToken)
             } catch (rejected: CorosAccessTokenRejected) {
                 if (refreshed) throw rejected
                 credentials = refresh(value, credentials)
                 value = value.copy(credentials = credentials)
                 currentCoroutineContext().ensureActive()
-                api.account(credentials.issuer, credentials.accessToken)
+                mcp.account(credentials.issuer, credentials.accessToken)
             }
             value = value.copy(account = account)
             save(value)
@@ -203,12 +205,12 @@ internal class CorosDataSourceConnector(
                 }
                 currentCoroutineContext().ensureActive()
                 try {
-                    api.training(credentials.issuer, credentials.accessToken, start, end, limit)
+                    mcp.training(credentials.issuer, credentials.accessToken, start, end, limit)
                 } catch (rejected: CorosAccessTokenRejected) {
                     if (refreshed) throw rejected
                     credentials = refresh(value, credentials)
                     currentCoroutineContext().ensureActive()
-                    api.training(credentials.issuer, credentials.accessToken, start, end, limit)
+                    mcp.training(credentials.issuer, credentials.accessToken, start, end, limit)
                 }
             } catch (expired: SourceAuthorizationExpired) {
                 store.clear(id)
