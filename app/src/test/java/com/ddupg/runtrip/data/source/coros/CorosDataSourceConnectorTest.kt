@@ -41,7 +41,7 @@ class CorosDataSourceConnectorTest {
     fun `browser return completes persisted session with PKCE and nickname`() = runTest {
         val service = TestCorosService()
         val store = Store()
-        fun connector() = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        fun connector() = CorosDataSourceConnector(store, CorosRequestClient(service), clock, StandardTestDispatcher(testScheduler))
         val first = connector()
         assertEquals(SourceConnection.Unbound, first.connection())
         val url = first.beginAuthorization()
@@ -66,7 +66,7 @@ class CorosDataSourceConnectorTest {
     fun `account request failure preserves exchanged credentials and can resume`() = runTest {
         val service = TestCorosService().apply { authorized = true; profileFails = true }
         val store = Store()
-        fun connector() = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        fun connector() = CorosDataSourceConnector(store, CorosRequestClient(service), clock, StandardTestDispatcher(testScheduler))
         connector().beginAuthorization()
         try {
             connector().completeAuthorization()
@@ -82,7 +82,7 @@ class CorosDataSourceConnectorTest {
     @Test
     fun `incorrect state prevents token exchange`() = runTest {
         val service = TestCorosService().apply { authorized = true; wrongState = true }
-        val connector = CorosDataSourceConnector(Store(), CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        val connector = CorosDataSourceConnector(Store(), CorosRequestClient(service), clock, StandardTestDispatcher(testScheduler))
         connector.beginAuthorization()
         try { connector.completeAuthorization(); fail("State must be verified") } catch (_: SourceProtocolException) { }
         assertEquals(0, service.tokenExchanges)
@@ -92,9 +92,9 @@ class CorosDataSourceConnectorTest {
     fun `expired session is cleared and disconnect clears credentials`() = runTest {
         val store = Store()
         val service = TestCorosService().apply { authorized = true }
-        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        val connector = CorosDataSourceConnector(store, CorosRequestClient(service), clock, StandardTestDispatcher(testScheduler))
         connector.beginAuthorization()
-        val later = CorosDataSourceConnector(store, CorosOAuthApi(service), Clock.offset(clock, java.time.Duration.ofHours(2)), StandardTestDispatcher(testScheduler))
+        val later = CorosDataSourceConnector(store, CorosRequestClient(service), Clock.offset(clock, java.time.Duration.ofHours(2)), StandardTestDispatcher(testScheduler))
         try { later.completeAuthorization(); fail("Expired session") } catch (_: SourceAuthorizationExpired) { }
         assertEquals(SourceConnection.Unbound, connector.connection())
         connector.beginAuthorization()
@@ -108,16 +108,16 @@ class CorosDataSourceConnectorTest {
     fun `expired token is rotated and rejected refresh requires new authorization`() = runTest {
         val store = Store()
         val service = TestCorosService().apply { authorized = true }
-        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        val connector = CorosDataSourceConnector(store, CorosRequestClient(service), clock, StandardTestDispatcher(testScheduler))
         connector.beginAuthorization()
         connector.completeAuthorization()
         val laterClock = Clock.offset(clock, java.time.Duration.ofHours(2))
-        val later = CorosDataSourceConnector(store, CorosOAuthApi(service), laterClock, StandardTestDispatcher(testScheduler))
+        val later = CorosDataSourceConnector(store, CorosRequestClient(service), laterClock, StandardTestDispatcher(testScheduler))
         assertTrue(later.completeAuthorization() is SourceConnection.Bound)
         assertEquals(1, service.refreshes)
         assertTrue(store.json!!.contains("synthetic-refresh-1"))
         service.invalidRefresh = true
-        val expired = CorosDataSourceConnector(store, CorosOAuthApi(service), Clock.offset(laterClock, java.time.Duration.ofHours(2)), StandardTestDispatcher(testScheduler))
+        val expired = CorosDataSourceConnector(store, CorosRequestClient(service), Clock.offset(laterClock, java.time.Duration.ofHours(2)), StandardTestDispatcher(testScheduler))
         try { expired.completeAuthorization(); fail("Revoked refresh") } catch (_: SourceAuthorizationExpired) { }
         assertNull(store.json)
     }
@@ -125,7 +125,7 @@ class CorosDataSourceConnectorTest {
     @Test
     fun `account parser supports official SSE and empty nickname stays absent`() = runTest {
         val service = TestCorosService().apply { sse = true; nickname = "" }
-        val account = CorosOAuthApi(service).account(service.issuer, "synthetic-access-0")
+        val account = CorosMcpApi(CorosRequestClient(service)).account(service.issuer, "synthetic-access-0")
         assertNull(account.name)
         assertEquals("synthetic-account-id", account.id)
     }
@@ -133,8 +133,22 @@ class CorosDataSourceConnectorTest {
     @Test
     fun `discovery cannot send credentials to an unrelated host`() = runTest {
         val service = TestCorosService().apply { issuer = "https://untrusted.example" }
-        try { CorosOAuthApi(service).discoverIssuer(); fail("Untrusted issuer") } catch (_: SourceProtocolException) { }
+        try { CorosOAuthApi(CorosRequestClient(service)).discoverIssuer(); fail("Untrusted issuer") } catch (_: SourceProtocolException) { }
         assertEquals(0, service.registrations)
+    }
+
+    @Test
+    fun `OAuth and MCP reject untrusted request origins before transport`() = runTest {
+        var requests = 0
+        val client = CorosRequestClient(CorosHttpTransport { _, _, _, _ ->
+            requests++
+            CorosHttpResponse(200, "{}")
+        })
+        for (issuer in listOf("https://untrusted.example", "https://user@mcpcn.coros.com", "https://mcpcn.coros.com:443")) {
+            try { CorosOAuthApi(client).refresh(issuer, "client", "refresh"); fail("Untrusted OAuth origin") } catch (_: SourceProtocolException) { }
+            try { CorosMcpApi(client).account(issuer, "access"); fail("Untrusted MCP origin") } catch (_: SourceProtocolException) { }
+        }
+        assertEquals(0, requests)
     }
 
     @Test
@@ -145,10 +159,10 @@ class CorosDataSourceConnectorTest {
             sse = true
             trainingText = "No sport records found from 2026-10-01 to 2026-10-31."
         }
-        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        val connector = CorosDataSourceConnector(store, CorosRequestClient(service), clock, StandardTestDispatcher(testScheduler))
         connector.beginAuthorization()
         connector.completeAuthorization()
-        val later = CorosDataSourceConnector(store, CorosOAuthApi(service), Clock.offset(clock, java.time.Duration.ofHours(2)), StandardTestDispatcher(testScheduler))
+        val later = CorosDataSourceConnector(store, CorosRequestClient(service), Clock.offset(clock, java.time.Duration.ofHours(2)), StandardTestDispatcher(testScheduler))
         val start = java.time.LocalDate.parse("2026-10-01")
         val end = java.time.LocalDate.parse("2026-10-31")
         assertTrue(later.readTraining("synthetic-account-id", start, end, 1000).isEmpty())
@@ -170,7 +184,7 @@ class CorosDataSourceConnectorTest {
     fun `training unauthorized retries once and preserves connection`() = runTest {
         val store = Store()
         val service = TestCorosService().apply { authorized = true; trainingUnauthorized = true }
-        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        val connector = CorosDataSourceConnector(store, CorosRequestClient(service), clock, StandardTestDispatcher(testScheduler))
         connector.beginAuthorization()
         connector.completeAuthorization()
         try {
@@ -189,7 +203,7 @@ class CorosDataSourceConnectorTest {
             rejectOldTrainingToken = true
             trainingText = "No sport records found from 2026-10-01 to 2026-10-31."
         }
-        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        val connector = CorosDataSourceConnector(store, CorosRequestClient(service), clock, StandardTestDispatcher(testScheduler))
         connector.beginAuthorization()
         connector.completeAuthorization()
         assertTrue(connector.readTraining("synthetic-account-id", java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-31"), 1000).isEmpty())
@@ -208,7 +222,7 @@ class CorosDataSourceConnectorTest {
             override fun write(id: DataSourceId, value: JSONObject) = error("must not write")
             override fun clear(id: DataSourceId) { cleared = true }
         }
-        val connector = CorosDataSourceConnector(store, CorosOAuthApi(TestCorosService()), clock, StandardTestDispatcher(testScheduler))
+        val connector = CorosDataSourceConnector(store, CorosRequestClient(TestCorosService()), clock, StandardTestDispatcher(testScheduler))
         assertEquals(SourceConnection.StorageError, connector.connection())
         assertFalse(cleared)
         connector.disconnect()
@@ -218,7 +232,7 @@ class CorosDataSourceConnectorTest {
     @Test
     fun `lost exchange response does not replay one time authorization code`() = runTest {
         val service = TestCorosService().apply { authorized = true; exchangeFails = true }
-        val connector = CorosDataSourceConnector(Store(), CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        val connector = CorosDataSourceConnector(Store(), CorosRequestClient(service), clock, StandardTestDispatcher(testScheduler))
         connector.beginAuthorization()
         try { connector.completeAuthorization(); fail("exchange should fail") } catch (_: java.io.IOException) { }
         service.exchangeFails = false
@@ -234,10 +248,10 @@ class CorosDataSourceConnectorTest {
         val store = Store()
         val service = TestCorosService().apply { authorized = true }
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, dispatcher)
+        val connector = CorosDataSourceConnector(store, CorosRequestClient(service), clock, dispatcher)
         connector.beginAuthorization()
         connector.completeAuthorization()
-        val later = CorosDataSourceConnector(store, CorosOAuthApi(service), Clock.offset(clock, java.time.Duration.ofHours(2)), dispatcher)
+        val later = CorosDataSourceConnector(store, CorosRequestClient(service), Clock.offset(clock, java.time.Duration.ofHours(2)), dispatcher)
         lateinit var request: kotlinx.coroutines.Job
         store.onRead = { request.cancel() }
         request = launch {
@@ -263,10 +277,10 @@ class CorosDataSourceConnectorTest {
             service.request(method, url, headers, body)
         }
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val connector = CorosDataSourceConnector(store, CorosOAuthApi(transport), clock, dispatcher)
+        val connector = CorosDataSourceConnector(store, CorosRequestClient(transport), clock, dispatcher)
         connector.beginAuthorization()
         connector.completeAuthorization()
-        val later = CorosDataSourceConnector(store, CorosOAuthApi(transport), Clock.offset(clock, java.time.Duration.ofHours(2)), dispatcher)
+        val later = CorosDataSourceConnector(store, CorosRequestClient(transport), Clock.offset(clock, java.time.Duration.ofHours(2)), dispatcher)
         val request = launch {
             later.readTraining("synthetic-account-id", java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-31"), 1000)
         }
@@ -292,7 +306,7 @@ class CorosDataSourceConnectorTest {
             if (url.contains("/oauth2/authorize")) authorizes++
             service.request(method, url, headers, body)
         }
-        val connector = CorosDataSourceConnector(store, CorosOAuthApi(transport), clock, StandardTestDispatcher(testScheduler))
+        val connector = CorosDataSourceConnector(store, CorosRequestClient(transport), clock, StandardTestDispatcher(testScheduler))
         connector.beginAuthorization()
         val job = launch { connector.completeAuthorization() }
         entered.await()
@@ -315,7 +329,7 @@ class CorosDataSourceConnectorTest {
             if (url.contains("/oauth2/authorize")) { entered.complete(Unit); release.await() }
             service.request(method, url, headers, body)
         }
-        val connector = CorosDataSourceConnector(store, CorosOAuthApi(transport), clock, StandardTestDispatcher(testScheduler))
+        val connector = CorosDataSourceConnector(store, CorosRequestClient(transport), clock, StandardTestDispatcher(testScheduler))
         connector.beginAuthorization()
         val job = launch { connector.completeAuthorization() }
         entered.await()

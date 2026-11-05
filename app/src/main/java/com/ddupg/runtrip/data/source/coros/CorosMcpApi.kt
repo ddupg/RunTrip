@@ -7,12 +7,14 @@ import java.time.format.DateTimeFormatter
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal class CorosMcpApi(private val api: CorosOAuthApi) {
+internal class CorosAccessTokenRejected : Exception()
+
+internal class CorosMcpApi(private val client: CorosRequestClient) {
     suspend fun account(issuer: String, accessToken: String): SourceAccount {
         val headers = mapOf("Authorization" to "Bearer $accessToken", "Accept" to "application/json, text/event-stream")
-        val userResponse = api.request("GET", "$issuer/userinfo", headers)
+        val userResponse = client.request("GET", "$issuer/userinfo", headers)
         if (userResponse.status == 401) throw CorosAccessTokenRejected()
-        val user = api.checked(userResponse)
+        val user = client.checked(userResponse)
         val subject = user.getString("sub").takeIf { it.isNotBlank() } ?: throw SourceProtocolException()
         mcp(issuer, headers, "initialize", JSONObject().put("protocolVersion", "2025-06-18")
             .put("capabilities", JSONObject()).put("clientInfo", JSONObject().put("name", "RunTrip").put("version", "1.0")))
@@ -31,7 +33,7 @@ internal class CorosMcpApi(private val api: CorosOAuthApi) {
     }
 
     private suspend fun mcp(issuer: String, headers: Map<String, String>, method: String, params: JSONObject): JSONObject {
-        val response = api.request("POST", "$issuer/mcp", headers + ("Content-Type" to "application/json"),
+        val response = client.request("POST", "$issuer/mcp", headers + ("Content-Type" to "application/json"),
             JSONObject().put("jsonrpc", "2.0").put("id", if (method == "initialize") 1 else 2)
                 .put("method", method).put("params", params).toString())
         if (response.status == 401) throw CorosAccessTokenRejected()
