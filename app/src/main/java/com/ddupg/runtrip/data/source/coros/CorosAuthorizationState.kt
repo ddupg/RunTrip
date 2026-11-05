@@ -4,15 +4,27 @@ import com.ddupg.runtrip.data.source.SourceAccount
 import org.json.JSONObject
 
 internal data class CorosCredentials(
-    val issuer: String, val clientId: String, val accessToken: String,
-    val refreshToken: String, val expiresAt: Long,
+    val issuer: String,
+    val clientId: String,
+    val accessToken: String,
+    val refreshToken: String,
+    val expiresAt: Long,
 )
 
 internal data class CorosPendingAuthorization(
-    val issuer: String, val clientId: String, val verifier: String, val state: String,
-    val sessionId: String, val pollToken: String, val loginUrl: String, val expiresAt: Long,
-    val ticket: String? = null, val code: String? = null,
-    val claimStarted: Boolean? = null, val ticketStarted: Boolean? = null, val exchangeStarted: Boolean? = null,
+    val issuer: String,
+    val clientId: String,
+    val verifier: String,
+    val state: String,
+    val sessionId: String,
+    val pollToken: String,
+    val loginUrl: String,
+    val expiresAt: Long,
+    val ticket: String? = null,
+    val code: String? = null,
+    val claimStarted: Boolean? = null,
+    val ticketStarted: Boolean? = null,
+    val exchangeStarted: Boolean? = null,
 )
 
 internal data class CorosAuthorizationState(
@@ -25,33 +37,64 @@ internal data class CorosAuthorizationState(
 internal object CorosAuthorizationCodec {
     fun decode(value: JSONObject): CorosAuthorizationState {
         val credentials = value.optJSONObject("credentials")?.let {
-            CorosCredentials(it.getString("issuer"), it.getString("clientId"), it.getString("accessToken"),
-                it.getString("refreshToken"), it.getLong("expiresAt"))
+            CorosCredentials(
+                issuer = it.getString("issuer"),
+                clientId = it.getString("clientId"),
+                accessToken = it.getString("accessToken"),
+                refreshToken = it.getString("refreshToken"),
+                expiresAt = it.getLong("expiresAt"),
+            )
         }
         val pending = value.optJSONObject("pending")?.let {
-            CorosPendingAuthorization(it.getString("issuer"), it.getString("clientId"), it.getString("verifier"),
-                it.getString("state"), it.getString("sessionId"), it.getString("pollToken"),
-                it.getString("loginUrl"), it.getLong("expiresAt"),
-                it.optionalString("ticket"), it.optionalString("code"), it.optionalBoolean("claimStarted"),
-                it.optionalBoolean("ticketStarted"), it.optionalBoolean("exchangeStarted"))
+            CorosPendingAuthorization(
+                issuer = it.getString("issuer"),
+                clientId = it.getString("clientId"),
+                verifier = it.getString("verifier"),
+                state = it.getString("state"),
+                sessionId = it.getString("sessionId"),
+                pollToken = it.getString("pollToken"),
+                loginUrl = it.getString("loginUrl"),
+                expiresAt = it.getLong("expiresAt"),
+                ticket = it.optionalString("ticket"),
+                code = it.optionalString("code"),
+                claimStarted = it.optionalBoolean("claimStarted"),
+                ticketStarted = it.optionalBoolean("ticketStarted"),
+                exchangeStarted = it.optionalBoolean("exchangeStarted"),
+            )
         }
         val account = value.optJSONObject("account")?.let {
-            SourceAccount(it.getString("id"), if (it.isNull("name")) null else it.getString("name"))
+            SourceAccount(id = it.getString("id"), name = if (it.isNull("name")) null else it.getString("name"))
         }
-        return CorosAuthorizationState(credentials, pending, account)
+        return CorosAuthorizationState(credentials = credentials, pending = pending, account = account)
     }
 
     fun encode(value: CorosAuthorizationState): JSONObject = JSONObject().apply {
-        value.credentials?.let { put("credentials", JSONObject().put("issuer", it.issuer).put("clientId", it.clientId)
-            .put("accessToken", it.accessToken).put("refreshToken", it.refreshToken).put("expiresAt", it.expiresAt)) }
-        value.pending?.let { put("pending", JSONObject().put("issuer", it.issuer).put("clientId", it.clientId)
-            .put("verifier", it.verifier).put("state", it.state).put("sessionId", it.sessionId)
-            .put("pollToken", it.pollToken).put("loginUrl", it.loginUrl).put("expiresAt", it.expiresAt)
-            .putOptional("ticket", it.ticket).putOptional("code", it.code)
-            .putOptional("claimStarted", it.claimStarted).putOptional("ticketStarted", it.ticketStarted)
-            .putOptional("exchangeStarted", it.exchangeStarted)) }
+        value.credentials?.let { put("credentials", encodeCredentials(it)) }
+        value.pending?.let { put("pending", encodePending(it)) }
         value.account?.let { put("account", JSONObject().put("id", it.id).put("name", it.name ?: JSONObject.NULL)) }
     }
+
+    private fun encodeCredentials(value: CorosCredentials) = JSONObject()
+        .put("issuer", value.issuer)
+        .put("clientId", value.clientId)
+        .put("accessToken", value.accessToken)
+        .put("refreshToken", value.refreshToken)
+        .put("expiresAt", value.expiresAt)
+
+    private fun encodePending(value: CorosPendingAuthorization) = JSONObject()
+        .put("issuer", value.issuer)
+        .put("clientId", value.clientId)
+        .put("verifier", value.verifier)
+        .put("state", value.state)
+        .put("sessionId", value.sessionId)
+        .put("pollToken", value.pollToken)
+        .put("loginUrl", value.loginUrl)
+        .put("expiresAt", value.expiresAt)
+        .putOptional("ticket", value.ticket)
+        .putOptional("code", value.code)
+        .putOptional("claimStarted", value.claimStarted)
+        .putOptional("ticketStarted", value.ticketStarted)
+        .putOptional("exchangeStarted", value.exchangeStarted)
 
     private fun JSONObject.optionalString(key: String): String? = if (has(key)) getString(key) else null
     private fun JSONObject.optionalBoolean(key: String): Boolean? = if (has(key)) optBoolean(key) else null

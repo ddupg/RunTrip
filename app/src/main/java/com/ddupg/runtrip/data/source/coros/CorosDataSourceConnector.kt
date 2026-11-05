@@ -63,9 +63,14 @@ internal class CorosDataSourceConnector(
             val clientId = api.register(issuer)
             val session = api.createSession(issuer, clientId)
             val pending = CorosPendingAuthorization(
-                issuer, clientId, CorosOAuthApi.randomSecret(), CorosOAuthApi.randomSecret(),
-                session.getString("sessionId"), session.getString("pollToken"), session.getString("loginUrl"),
-                Instant.parse(session.getString("expiresAt")).epochSecond,
+                issuer = issuer,
+                clientId = clientId,
+                verifier = CorosOAuthApi.randomSecret(),
+                state = CorosOAuthApi.randomSecret(),
+                sessionId = session.getString("sessionId"),
+                pollToken = session.getString("pollToken"),
+                loginUrl = session.getString("loginUrl"),
+                expiresAt = Instant.parse(session.getString("expiresAt")).epochSecond,
             )
             save(CorosAuthorizationState(pending = pending))
             pending.loginUrl
@@ -173,8 +178,11 @@ internal class CorosDataSourceConnector(
     }
 
     private fun credentials(token: JSONObject, issuer: String, clientId: String) = CorosCredentials(
-        issuer, clientId, token.getString("access_token"), token.getString("refresh_token"),
-        clock.instant().epochSecond + token.getLong("expires_in"),
+        issuer = issuer,
+        clientId = clientId,
+        accessToken = token.getString("access_token"),
+        refreshToken = token.getString("refresh_token"),
+        expiresAt = clock.instant().epochSecond + token.getLong("expires_in"),
     )
 
     override suspend fun disconnect() = withContext(dispatcher) {
