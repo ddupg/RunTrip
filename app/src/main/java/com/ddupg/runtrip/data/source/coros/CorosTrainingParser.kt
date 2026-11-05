@@ -4,6 +4,8 @@ import com.ddupg.runtrip.data.model.TrainingActivity
 import com.ddupg.runtrip.data.model.TrainingSubtype
 import com.ddupg.runtrip.data.source.SourceProtocolException
 import java.time.LocalDate
+import java.time.Instant
+import java.time.ZoneOffset
 import org.json.JSONObject
 import org.json.JSONTokener
 
@@ -49,8 +51,14 @@ internal object CorosTrainingParser {
             if (distance == null && body.contains("Distance:")) throw SourceProtocolException()
             val meters = distance?.let { it.groupValues[1].toDouble() * if (it.groupValues[2] == "km") 1000 else 1 }
             if (meters != null && !meters.isFinite()) throw SourceProtocolException()
-            val timestamp = Regex("startTimestamp=(\\d+)\\b").find(body)?.groupValues?.get(1)?.toLong()
+            val timestamp = Regex("startTimestamp=(\\d+)\\b").find(body)?.groupValues?.get(1)?.toLongOrNull()
             if (timestamp == null && body.contains("startTimestamp=")) throw SourceProtocolException()
+            if (timestamp != null) {
+                // Limit Unix seconds to 1970 onwards and to a four-digit year in any display time zone.
+                val latestExclusive = LocalDate.of(9999, 12, 31).plusDays(1).atStartOfDay().toEpochSecond(ZoneOffset.MAX)
+                if (timestamp !in 0 until latestExclusive) throw SourceProtocolException()
+                Instant.ofEpochSecond(timestamp)
+            }
             TrainingActivity("${identity.groupValues[2]}:${identity.groupValues[1]}", subtype, date, timestamp, meters, seconds)
         }
         if (records.map { it.id }.toSet().size != records.size) throw SourceProtocolException()
