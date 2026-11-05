@@ -91,7 +91,7 @@ class RunTripMigrationTest {
     }
 
     @Test
-    fun migration4To5PreservesLegacyTrailAndAllowsReselectionAndReopen() = runTest {
+    fun migration4ToLatestPreservesLegacyTrailAndAllowsReselectionAndReopen() = runTest {
         val schemaPath = "com.ddupg.runtrip.data.local.RunTripDatabase/4.json"
         val entities = JSONObject(requireNotNull(javaClass.classLoader?.getResourceAsStream(schemaPath))
             .bufferedReader().use { it.readText() }).getJSONObject("database").getJSONArray("entities")
@@ -227,10 +227,16 @@ class RunTripMigrationTest {
             helper.close()
         }
         database = RunTripDatabase.create(context)
-        val before = requireNotNull(OfflineRaceRepository(requireNotNull(database).raceDao()).observeRace("legacy-v5").first())
-        assertEquals("既有比赛", before.name)
-        assertEquals("杭州市", before.location?.cityName)
-        assertEquals(3, before.recordVersion)
+        val expected = Race(
+            id = "legacy-v5", name = "既有比赛", city = "", raceDate = LocalDate.of(2026, 11, 15),
+            details = RoadRunningDetails(RoadRunningCategory.HALF_MARATHON, CaaRaceLevel.A1, WorldAthleticsLabel.GOLD),
+            status = RaceStatus.REGISTERED, travelDistanceKm = null,
+            hotelBookingStatus = HotelBookingStatus.NOT_BOOKED, hotelName = null, bookingPlatform = null,
+            hotelTotalPriceCents = null, hotelNotes = null, raceNotes = null,
+            createdAtEpochMillis = 1000L, updatedAtEpochMillis = 2000L, recordVersion = 3,
+            location = RaceLocation("330000", "浙江省", "330100", "杭州市", null, null, "9.0.0"),
+        )
+        assertEquals(expected, OfflineRaceRepository(requireNotNull(database).raceDao()).observeRace("legacy-v5").first())
         requireNotNull(database).trainingDao().saveBatch(
             listOf(TrainingActivityEntity("coros", "synthetic-account", "synthetic-activity", "POOL_SWIM",
                 "2026-11-02", null, null, 2160)),
@@ -238,7 +244,7 @@ class RunTripMigrationTest {
         )
         database?.close()
         database = RunTripDatabase.create(context)
-        assertEquals(before, OfflineRaceRepository(requireNotNull(database).raceDao()).observeRace("legacy-v5").first())
+        assertEquals(expected, OfflineRaceRepository(requireNotNull(database).raceDao()).observeRace("legacy-v5").first())
         val record = requireNotNull(database).trainingDao().observe("coros", "synthetic-account").first().single()
         assertNull(record.distanceMeters)
         assertNull(record.startEpochSeconds)
