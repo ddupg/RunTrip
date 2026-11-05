@@ -73,4 +73,3 @@ internal class UrlConnectionCorosTransport(private val totalTimeoutMillis: Long 
             }.apply { isDaemon = true; start() }
         }
 }
-
