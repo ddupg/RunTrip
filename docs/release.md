@@ -58,9 +58,8 @@ git push origin vX.Y.Z
 
 以 `v` 开头的 tag 会触发 `.github/workflows/release.yml`。流水线会：
 
-1. 校验 tag 与 `runTripVersionName` 一致。
-2. 运行测试和 Android Lint。
-3. 构建并校验签名 Release APK。
-4. 创建 GitHub Release 并上传：
+1. 复用 [CI 验证](ci-validation.md)，包括单元测试、Lint、构建、已跟踪及未跟踪 schema 检查，以及 API 36 模拟器上的 instrumentation 测试。验证任务不接收签名 secrets。
+2. 验证全部通过后，校验 tag 与 `runTripVersionName` 一致，构建并校验签名 Release APK。
+3. 创建 GitHub Release 并上传：
    - `RunTrip-vX.Y.Z.apk`
    - `RunTrip-vX.Y.Z.apk.sha256`
