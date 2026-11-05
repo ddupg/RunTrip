@@ -49,9 +49,9 @@ class CorosAuthorizationCodecTest {
         assertFalse(pending.exchangeStarted)
         val states = listOf(
             CorosAuthorizationState(pending = pending),
-            CorosAuthorizationState(pending = pending.copy(ticket = "ticket", claimStarted = true)),
-            CorosAuthorizationState(pending = pending.copy(code = "code", ticketStarted = true)),
-            CorosAuthorizationState(pending = pending.copy(exchangeStarted = true)),
+            CorosAuthorizationState(pending = pending.copy(claimStarted = true)),
+            CorosAuthorizationState(pending = pending.copy(ticket = "ticket", ticketStarted = true)),
+            CorosAuthorizationState(pending = pending.copy(code = "code", exchangeStarted = true)),
             CorosAuthorizationState(credentials = CorosCredentials("issuer", "client", "access", "refresh", 123L),
                 account = com.ddupg.runtrip.data.source.SourceAccount("id", null)),
         )
