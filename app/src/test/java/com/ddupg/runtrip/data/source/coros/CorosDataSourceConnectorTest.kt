@@ -26,7 +26,11 @@ import org.robolectric.annotation.Config
 class CorosDataSourceConnectorTest {
     private class Store : SourceStore {
         var json: String? = null
-        override fun read(id: DataSourceId) = json?.let(::JSONObject)
+        var onRead: (() -> Unit)? = null
+        override fun read(id: DataSourceId): JSONObject? {
+            onRead?.invoke()
+            return json?.let(::JSONObject)
+        }
         override fun write(id: DataSourceId, value: JSONObject) { json = value.toString() }
         override fun clear(id: DataSourceId) { json = null }
     }
@@ -223,6 +227,57 @@ class CorosDataSourceConnectorTest {
         assertEquals(1, service.tokenExchanges)
         connector.disconnect()
         assertEquals(SourceConnection.Unbound, connector.connection())
+    }
+
+    @Test
+    fun `cancellation during snapshot prevents starting refresh`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply { authorized = true }
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, dispatcher)
+        connector.beginAuthorization()
+        connector.completeAuthorization()
+        val later = CorosDataSourceConnector(store, CorosOAuthApi(service), Clock.offset(clock, java.time.Duration.ofHours(2)), dispatcher)
+        lateinit var request: kotlinx.coroutines.Job
+        store.onRead = { request.cancel() }
+        request = launch {
+            later.readTraining("synthetic-account-id", java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-31"), 1000)
+        }
+        request.join()
+        assertTrue(request.isCancelled)
+        assertEquals(0, service.refreshes)
+        assertTrue(store.json!!.contains("synthetic-refresh-0"))
+    }
+
+    @Test
+    fun `cancellation during refresh persists rotated credentials`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply { authorized = true }
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val transport = CorosHttpTransport { method, url, headers, body ->
+            if (url.endsWith("/oauth2/token") && body?.contains("grant_type=refresh_token") == true) {
+                entered.complete(Unit)
+                release.await()
+            }
+            service.request(method, url, headers, body)
+        }
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(transport), clock, dispatcher)
+        connector.beginAuthorization()
+        connector.completeAuthorization()
+        val later = CorosDataSourceConnector(store, CorosOAuthApi(transport), Clock.offset(clock, java.time.Duration.ofHours(2)), dispatcher)
+        val request = launch {
+            later.readTraining("synthetic-account-id", java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-31"), 1000)
+        }
+        entered.await()
+        request.cancel()
+        release.complete(Unit)
+        request.join()
+        assertTrue(request.isCancelled)
+        assertEquals(1, service.refreshes)
+        assertTrue(store.json!!.contains("synthetic-refresh-1"))
+        assertNull(service.trainingArguments)
     }
 
     @Test

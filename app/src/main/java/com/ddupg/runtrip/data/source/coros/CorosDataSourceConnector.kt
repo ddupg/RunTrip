@@ -163,14 +163,17 @@ internal class CorosDataSourceConnector(
         return connection(value)
     }
 
-    private suspend fun refresh(value: JSONObject, old: JSONObject): JSONObject = withContext(NonCancellable) {
-        val updated = credentials(
-            api.refresh(old.getString("issuer"), old.getString("clientId"), old.getString("refreshToken")),
-            old.getString("issuer"), old.getString("clientId"),
-        )
-        value.put("credentials", updated)
-        store.write(id, value)
-        updated
+    private suspend fun refresh(value: JSONObject, old: JSONObject): JSONObject {
+        currentCoroutineContext().ensureActive()
+        return withContext(NonCancellable) {
+            val updated = credentials(
+                api.refresh(old.getString("issuer"), old.getString("clientId"), old.getString("refreshToken")),
+                old.getString("issuer"), old.getString("clientId"),
+            )
+            value.put("credentials", updated)
+            store.write(id, value)
+            updated
+        }
     }
 
     private fun credentials(token: JSONObject, issuer: String, clientId: String): JSONObject = JSONObject()
