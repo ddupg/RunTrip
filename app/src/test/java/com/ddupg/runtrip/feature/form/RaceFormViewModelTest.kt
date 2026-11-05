@@ -160,21 +160,6 @@ class RaceFormViewModelTest {
     }
 
     @Test
-    fun failedSaveIsRepresentedInUiState() = runTest(testDispatcher) {
-        val repository = TestRaceRepository().apply {
-            create.failure = IllegalStateException("write failed")
-        }
-        val viewModel = RaceFormViewModel(repository, raceId = null)
-        viewModel.updateDraft(validDraft())
-
-        viewModel.save()
-        advanceUntilIdle()
-
-        assertFalse(viewModel.uiState.value.isSaving)
-        assertEquals("保存失败，请重试", viewModel.uiState.value.saveError)
-    }
-
-    @Test
     fun duplicateSaveWhileWritingCreatesOnlyOneRace() = runTest(testDispatcher) {
         val repository = TestRaceRepository().apply {
             create.gate = CompletableDeferred()

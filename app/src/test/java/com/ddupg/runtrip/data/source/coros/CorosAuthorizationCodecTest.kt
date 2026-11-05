@@ -41,34 +41,22 @@ class CorosAuthorizationCodecTest {
         }
     }
 
-    private fun assertJsonEquals(expected: JSONObject, actual: JSONObject) {
-        val keys = expected.keys().asSequence().toSet()
-        assertEquals(keys, actual.keys().asSequence().toSet())
-        keys.forEach { key ->
-            val left = expected.get(key)
-            val right = actual.get(key)
-            if (left is JSONObject && right is JSONObject) assertJsonEquals(left, right)
-            else if (left is Number && right is Number) assertEquals(left.toLong(), right.toLong())
-            else assertEquals(left, right)
-        }
-    }
-
     @Test
-    fun `v1 states round trip without adding optional fields`() {
-        val pending = legacyPending()
+    fun `authorization states round trip with stage flags`() {
+        val pending = CorosAuthorizationCodec.decode(JSONObject().put("pending", legacyPending())).pending!!
+        assertFalse(pending.claimStarted)
+        assertFalse(pending.ticketStarted)
+        assertFalse(pending.exchangeStarted)
         val states = listOf(
-            JSONObject().put("pending", JSONObject(pending.toString())),
-            JSONObject().put("pending", JSONObject(pending.toString()).put("ticket", "synthetic-ticket")),
-            JSONObject().put("pending", JSONObject(pending.toString()).put("code", "synthetic-code")),
-            JSONObject().put("pending", JSONObject(pending.toString()).put("claimStarted", true)),
-            JSONObject().put("pending", JSONObject(pending.toString()).put("ticketStarted", false)),
-            JSONObject().put("pending", JSONObject(pending.toString()).put("exchangeStarted", true)),
-            JSONObject().put("credentials", JSONObject().put("issuer", "issuer").put("clientId", "client")
-                .put("accessToken", "access").put("refreshToken", "refresh").put("expiresAt", 123L))
-                .put("account", JSONObject().put("id", "id").put("name", JSONObject.NULL)),
+            CorosAuthorizationState(pending = pending),
+            CorosAuthorizationState(pending = pending.copy(claimStarted = true)),
+            CorosAuthorizationState(pending = pending.copy(ticket = "ticket", ticketStarted = true)),
+            CorosAuthorizationState(pending = pending.copy(code = "code", exchangeStarted = true)),
+            CorosAuthorizationState(credentials = CorosCredentials("issuer", "client", "access", "refresh", 123L),
+                account = com.ddupg.runtrip.data.source.SourceAccount("id", null)),
         )
-        states.forEach { original ->
-            assertJsonEquals(original, CorosAuthorizationCodec.encode(CorosAuthorizationCodec.decode(original)))
+        states.forEach { state ->
+            assertEquals(state, CorosAuthorizationCodec.decode(CorosAuthorizationCodec.encode(state)))
         }
     }
 

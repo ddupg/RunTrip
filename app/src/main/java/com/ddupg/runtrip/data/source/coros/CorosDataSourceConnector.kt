@@ -40,7 +40,7 @@ internal class CorosDataSourceConnector(
         if (value.account != null && value.credentials != null) return SourceConnection.Bound(value.account)
         val pending = value.pending
         return when {
-            pending != null && listOf(pending.claimStarted, pending.ticketStarted, pending.exchangeStarted).any { it == true } -> SourceConnection.AuthorizationRestartRequired
+            pending != null && listOf(pending.claimStarted, pending.ticketStarted, pending.exchangeStarted).any { it } -> SourceConnection.AuthorizationRestartRequired
             pending != null -> SourceConnection.Authorizing(pending.loginUrl)
             value.credentials != null -> SourceConnection.Authorizing(null)
             else -> SourceConnection.Unbound
@@ -100,7 +100,7 @@ internal class CorosDataSourceConnector(
             }
             if (pending.ticket == null && pending.code == null) {
                 currentCoroutineContext().ensureActive()
-                if (pending.claimStarted == true) throw SourceProtocolException()
+                if (pending.claimStarted) throw SourceProtocolException()
                 val result = withContext(NonCancellable) {
                     pending = pending.copy(claimStarted = true)
                     value = value.copy(pending = pending)
@@ -108,7 +108,7 @@ internal class CorosDataSourceConnector(
                     val claimed = api.claim(pending.issuer, pending.sessionId, pending.pollToken)
                     pending = pending.copy(
                         ticket = if (claimed.optString("status").equals("authorized", ignoreCase = true)) claimed.getString("loginTicket") else pending.ticket,
-                        claimStarted = null,
+                        claimStarted = false,
                     )
                     value = value.copy(pending = pending)
                     save(value)
@@ -124,18 +124,18 @@ internal class CorosDataSourceConnector(
             }
             if (pending.code == null) {
                 currentCoroutineContext().ensureActive()
-                if (pending.ticketStarted == true) throw SourceProtocolException()
+                if (pending.ticketStarted) throw SourceProtocolException()
                 withContext(NonCancellable) {
                     pending = pending.copy(ticketStarted = true)
                     value = value.copy(pending = pending)
                     save(value)
-                    pending = pending.copy(code = api.authorizationCode(pending, pending.ticket!!), ticket = null, ticketStarted = null)
+                    pending = pending.copy(code = api.authorizationCode(pending, pending.ticket!!), ticket = null, ticketStarted = false)
                     value = value.copy(pending = pending)
                     save(value)
                 }
             }
             currentCoroutineContext().ensureActive()
-            if (pending.exchangeStarted == true) throw SourceProtocolException()
+            if (pending.exchangeStarted) throw SourceProtocolException()
             withContext(NonCancellable) {
                 pending = pending.copy(exchangeStarted = true)
                 value = value.copy(pending = pending)

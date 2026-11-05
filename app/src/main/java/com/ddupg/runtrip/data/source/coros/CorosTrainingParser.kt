@@ -4,7 +4,6 @@ import com.ddupg.runtrip.data.model.TrainingActivity
 import com.ddupg.runtrip.data.model.TrainingSubtype
 import com.ddupg.runtrip.data.source.SourceProtocolException
 import java.time.LocalDate
-import java.time.Instant
 import java.time.ZoneOffset
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -57,7 +56,6 @@ internal object CorosTrainingParser {
                 // Limit Unix seconds to 1970 onwards and to a four-digit year in any display time zone.
                 val latestExclusive = LocalDate.of(9999, 12, 31).plusDays(1).atStartOfDay().toEpochSecond(ZoneOffset.MAX)
                 if (timestamp !in 0 until latestExclusive) throw SourceProtocolException()
-                Instant.ofEpochSecond(timestamp)
             }
             TrainingActivity("${identity.groupValues[2]}:${identity.groupValues[1]}", subtype, date, timestamp, meters, seconds)
         }
