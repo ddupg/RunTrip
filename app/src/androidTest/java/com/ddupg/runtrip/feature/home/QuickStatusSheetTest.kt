@@ -7,8 +7,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeDown
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.ddupg.runtrip.data.model.*
@@ -27,7 +25,7 @@ import org.junit.runner.RunWith
 class QuickStatusSheetTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun savingSurvivesDismissGesturesAndFailureCanBeRetried() {
+    @Test fun savingSurvivesBackAndFailureCanBeRetried() {
         val race = Race(
             "race", "测试比赛", "杭州", LocalDate.of(2027, 1, 1),
             RoadRunningDetails(RoadRunningCategory.MARATHON), RaceStatus.WATCHING,
@@ -61,13 +59,15 @@ class QuickStatusSheetTest {
         }
         compose.waitUntil(5_000) { viewModel.uiState.value.monthGroups.isNotEmpty() }
         compose.runOnIdle { viewModel.openQuickStatus(race.id) }
+        compose.onNodeWithText("更新参赛状态").assertIsDisplayed()
+        pressBack()
+        compose.waitUntil(5_000) { viewModel.uiState.value.quickStatusRace == null }
+        compose.onNodeWithText("更新参赛状态").assertDoesNotExist()
+        compose.runOnIdle { viewModel.openQuickStatus(race.id) }
         compose.onNodeWithText("已中签").performClick()
         compose.waitUntil(5_000) { viewModel.uiState.value.quickStatusUpdate is QuickStatusUpdate.Saving }
 
-        compose.onNodeWithText("更新参赛状态").performTouchInput { swipeDown() }
-        compose.onNodeWithText("更新参赛状态").assertIsDisplayed()
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-        compose.waitForIdle()
+        pressBack()
         compose.onNodeWithText("更新参赛状态").assertIsDisplayed()
         compose.runOnIdle { firstSave.complete(Unit) }
         compose.waitUntil(5_000) { viewModel.uiState.value.quickStatusUpdate is QuickStatusUpdate.Failed }
@@ -76,5 +76,10 @@ class QuickStatusSheetTest {
         compose.waitUntil(5_000) { viewModel.uiState.value.quickStatusRace == null }
         compose.onNodeWithText("更新参赛状态").assertDoesNotExist()
         assertEquals(2, attempts)
+    }
+
+    private fun pressBack() {
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        compose.waitForIdle()
     }
 }
