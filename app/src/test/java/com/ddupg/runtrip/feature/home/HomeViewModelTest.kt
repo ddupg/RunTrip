@@ -5,6 +5,7 @@ import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.model.RoadRunningCategory
 import com.ddupg.runtrip.data.model.RoadRunningDetails
 import com.ddupg.runtrip.data.repository.RaceMutationResult
+import com.ddupg.runtrip.data.repository.RaceRepository
 import com.ddupg.runtrip.testing.TestRaceRepository
 import com.ddupg.runtrip.testing.testRace
 import java.time.LocalDate
@@ -14,6 +15,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -195,6 +197,55 @@ class HomeViewModelTest {
 
         assertNull(viewModel.uiState.value.quickStatusRace)
         assertEquals(QuickStatusUpdate.Idle, viewModel.uiState.value.quickStatusUpdate)
+    }
+
+    @Test
+    fun failedReadPreservesPendingQuickStatusAndRetryReconcilesDeletedRace() = runTest(testDispatcher) {
+        val selected = race(id = "race-id", date = today.plusDays(1))
+        val delegate = TestRaceRepository(listOf(selected))
+        val updates = MutableStateFlow<List<Race>?>(listOf(selected))
+        var subscriptions = 0
+        val repository = object : RaceRepository by delegate {
+            override fun observeRaces(): Flow<List<Race>> = flow {
+                subscriptions++
+                updates.collect { races -> emit(races ?: error("read failed")) }
+            }
+        }
+        val gate = CompletableDeferred<Unit>()
+        delegate.updateStatus.gate = gate
+        delegate.updateStatus.failure = IllegalStateException("write failed")
+        val viewModel = HomeViewModel(repository, MutableDaySource(today))
+        startCollecting(viewModel)
+        runCurrent()
+        viewModel.openQuickStatus(selected.id)
+        viewModel.updateQuickStatus(RaceStatus.DRAW_WON)
+        runCurrent()
+
+        updates.value = null
+        runCurrent()
+        assertEquals("加载比赛失败，请重试", viewModel.uiState.value.loadError)
+        assertEquals(selected, viewModel.uiState.value.quickStatusRace)
+        assertEquals(QuickStatusUpdate.Saving(RaceStatus.DRAW_WON), viewModel.uiState.value.quickStatusUpdate)
+        gate.complete(Unit)
+        runCurrent()
+        assertEquals(selected, viewModel.uiState.value.quickStatusRace)
+        assertEquals(QuickStatusUpdate.Failed("更新参赛状态失败，请重试"), viewModel.uiState.value.quickStatusUpdate)
+
+        updates.value = listOf(selected.copy(name = "更新后的名称"))
+        viewModel.retryLoad()
+        runCurrent()
+        assertEquals(2, subscriptions)
+        assertNull(viewModel.uiState.value.loadError)
+        assertEquals("更新后的名称", viewModel.uiState.value.quickStatusRace?.name)
+        assertEquals(QuickStatusUpdate.Failed("更新参赛状态失败，请重试"), viewModel.uiState.value.quickStatusUpdate)
+        updates.value = emptyList()
+        runCurrent()
+        assertNull(viewModel.uiState.value.quickStatusRace)
+        assertEquals(QuickStatusUpdate.Idle, viewModel.uiState.value.quickStatusUpdate)
+        updates.value = null
+        runCurrent()
+        assertNotNull(viewModel.uiState.value.loadError)
+        assertNull(viewModel.uiState.value.quickStatusRace)
     }
 
     private fun TestScope.startCollecting(viewModel: HomeViewModel) {

@@ -3,6 +3,7 @@ package com.ddupg.runtrip.feature.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.ddupg.runtrip.data.model.Race
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.data.repository.RaceMutationResult
 import com.ddupg.runtrip.data.repository.RaceRepository
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.stateIn
@@ -35,6 +37,19 @@ class HomeViewModel(
                 HomeData.Ready(races, today) as HomeData
             })
         }.onStart { emit(HomeData.Loading) }
+            .onEach { result ->
+                if (result is HomeData.Ready) {
+                    controls.update { current ->
+                        val selected = current.quickStatusRace ?: return@update current
+                        val latest = result.races.firstOrNull { it.id == selected.id }
+                        if (latest == null) {
+                            current.copy(quickStatusRace = null, quickStatusUpdate = QuickStatusUpdate.Idle)
+                        } else {
+                            current.copy(quickStatusRace = latest)
+                        }
+                    }
+                }
+            }
             .catch { error ->
                 if (error is CancellationException) throw error
                 emit(HomeData.Failed)
@@ -46,6 +61,7 @@ class HomeViewModel(
             section = currentControls.section,
             filter = currentControls.filter,
             quickStatusUpdate = currentControls.quickStatusUpdate,
+            quickStatusRace = currentControls.quickStatusRace,
         )
         when (data) {
             HomeData.Loading -> base.copy(isLoading = true)
@@ -53,7 +69,6 @@ class HomeViewModel(
             is HomeData.Ready -> base.copy(
                 sectionRaceCount = countRacesInSection(data.races, currentControls.section, data.today),
                 monthGroups = buildRaceMonthGroups(data.races, currentControls.section, currentControls.filter, data.today),
-                quickStatusRace = data.races.firstOrNull { it.id == currentControls.quickStatusRaceId },
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState(isLoading = true))
@@ -69,12 +84,14 @@ class HomeViewModel(
     }
 
     fun openQuickStatus(raceId: String) {
+        val race = uiState.value.monthGroups.asSequence().flatMap { it.races.asSequence() }
+            .firstOrNull { it.id == raceId } ?: return
         controls.update { current ->
             if (current.quickStatusUpdate is QuickStatusUpdate.Saving) {
                 current
             } else {
                 current.copy(
-                    quickStatusRaceId = raceId,
+                    quickStatusRace = race,
                     quickStatusUpdate = QuickStatusUpdate.Idle,
                 )
             }
@@ -87,7 +104,7 @@ class HomeViewModel(
                 current
             } else {
                 current.copy(
-                    quickStatusRaceId = null,
+                    quickStatusRace = null,
                     quickStatusUpdate = QuickStatusUpdate.Idle,
                 )
             }
@@ -96,7 +113,7 @@ class HomeViewModel(
 
     fun updateQuickStatus(status: RaceStatus) {
         val current = controls.value
-        val raceId = current.quickStatusRaceId ?: return
+        val raceId = current.quickStatusRace?.id ?: return
         if (current.quickStatusUpdate is QuickStatusUpdate.Saving) return
 
         controls.update {
@@ -115,12 +132,12 @@ class HomeViewModel(
             }
 
             controls.update { latest ->
-                if (latest.quickStatusRaceId != raceId) {
+                if (latest.quickStatusRace?.id != raceId) {
                     latest
                 } else {
                     when (updateResult) {
                         QuickStatusResult.Success -> latest.copy(
-                            quickStatusRaceId = null,
+                            quickStatusRace = null,
                             quickStatusUpdate = QuickStatusUpdate.Idle,
                         )
 
@@ -155,7 +172,7 @@ class HomeViewModel(
 private data class HomeControls(
     val section: RaceSection = RaceSection.UPCOMING,
     val filter: RaceFilter = RaceFilter(),
-    val quickStatusRaceId: String? = null,
+    val quickStatusRace: Race? = null,
     val quickStatusUpdate: QuickStatusUpdate = QuickStatusUpdate.Idle,
 )
 
