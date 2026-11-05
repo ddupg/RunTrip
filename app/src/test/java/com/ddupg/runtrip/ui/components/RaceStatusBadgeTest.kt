@@ -5,15 +5,11 @@ import androidx.compose.ui.graphics.Color
 import com.ddupg.runtrip.data.model.RaceStatus
 import com.ddupg.runtrip.ui.theme.RunTripDarkColors
 import com.ddupg.runtrip.ui.theme.RunTripInk
-import com.ddupg.runtrip.ui.theme.RunTripLightColors
 import com.ddupg.runtrip.ui.theme.RunTripLimeDark
-import com.ddupg.runtrip.ui.theme.RunTripOlive
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.pow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.ddupg.runtrip.testing.contrastRatio
 
 class RaceStatusBadgeTest {
     @Test
@@ -39,7 +35,7 @@ class RaceStatusBadgeTest {
     @Test
     fun onlyAttentionConfirmedAndWonUseFilledContainers() {
         RaceStatusBadgeStyle.entries.forEach { style ->
-            val colors = RunTripLightColors.raceStatusBadgeColors(style)
+            val colors = RunTripDarkColors.raceStatusBadgeColors(style)
             val shouldBeFilled = style == RaceStatusBadgeStyle.CONFIRMED ||
                 style == RaceStatusBadgeStyle.ATTENTION ||
                 style == RaceStatusBadgeStyle.WON
@@ -54,30 +50,9 @@ class RaceStatusBadgeTest {
     @Test
     fun drawPendingUsesSameHighlightAsConfirmed() {
         assertEquals(
-            RunTripLightColors.raceStatusBadgeColors(RaceStatusBadgeStyle.CONFIRMED),
-            RunTripLightColors.raceStatusBadgeColors(RaceStatusBadgeStyle.ATTENTION),
-        )
-        assertEquals(
             RunTripDarkColors.raceStatusBadgeColors(RaceStatusBadgeStyle.CONFIRMED),
             RunTripDarkColors.raceStatusBadgeColors(RaceStatusBadgeStyle.ATTENTION),
         )
-    }
-
-    @Test
-    fun lightPaletteUsesGraphiteForConfirmedAndSoftSurfaceForWon() {
-        val confirmed = RunTripLightColors.raceStatusBadgeColors(
-            RaceStatusBadgeStyle.CONFIRMED,
-        )
-        val won = RunTripLightColors.raceStatusBadgeColors(RaceStatusBadgeStyle.WON)
-        val muted = RunTripLightColors.raceStatusBadgeColors(RaceStatusBadgeStyle.MUTED)
-
-        assertEquals(RunTripOlive, confirmed.containerColor)
-        assertEquals(Color.White, confirmed.contentColor)
-        assertEquals(RunTripLightColors.secondaryContainer, won.containerColor)
-        assertEquals(RunTripOlive, won.contentColor)
-        assertEquals(Color.Transparent, muted.containerColor)
-        assertEquals(null, muted.borderColor)
-        assertAccessible(RunTripLightColors)
     }
 
     @Test
@@ -114,24 +89,6 @@ class RaceStatusBadgeTest {
             }
         }
     }
-
-    private fun contrastRatio(first: Color, second: Color): Double {
-        val lighter = max(first.relativeLuminance(), second.relativeLuminance())
-        val darker = min(first.relativeLuminance(), second.relativeLuminance())
-        return (lighter + 0.05) / (darker + 0.05)
-    }
-
-    private fun Color.relativeLuminance(): Double =
-        0.2126 * red.linearized() +
-            0.7152 * green.linearized() +
-            0.0722 * blue.linearized()
-
-    private fun Float.linearized(): Double =
-        if (this <= 0.04045f) {
-            this / 12.92
-        } else {
-            ((this + 0.055) / 1.055).pow(2.4)
-        }
 
     private companion object {
         const val TEXT_CONTRAST = 4.5

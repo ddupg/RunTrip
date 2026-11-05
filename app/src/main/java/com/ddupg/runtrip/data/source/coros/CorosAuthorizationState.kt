@@ -22,9 +22,9 @@ internal data class CorosPendingAuthorization(
     val expiresAt: Long,
     val ticket: String? = null,
     val code: String? = null,
-    val claimStarted: Boolean? = null,
-    val ticketStarted: Boolean? = null,
-    val exchangeStarted: Boolean? = null,
+    val claimStarted: Boolean = false,
+    val ticketStarted: Boolean = false,
+    val exchangeStarted: Boolean = false,
 )
 
 internal data class CorosAuthorizationState(
@@ -33,7 +33,7 @@ internal data class CorosAuthorizationState(
     val account: SourceAccount? = null,
 )
 
-/** The encrypted SourceStore owns the envelope; this codec preserves its v1 value fields. */
+/** The encrypted SourceStore owns the envelope; this codec stores authorization state. */
 internal object CorosAuthorizationCodec {
     fun decode(value: JSONObject): CorosAuthorizationState {
         val credentials = value.optionalObject("credentials")?.let {
@@ -57,9 +57,9 @@ internal object CorosAuthorizationCodec {
                 expiresAt = it.getLong("expiresAt"),
                 ticket = it.optionalString("ticket"),
                 code = it.optionalString("code"),
-                claimStarted = it.optionalBoolean("claimStarted"),
-                ticketStarted = it.optionalBoolean("ticketStarted"),
-                exchangeStarted = it.optionalBoolean("exchangeStarted"),
+                claimStarted = it.optBoolean("claimStarted"),
+                ticketStarted = it.optBoolean("ticketStarted"),
+                exchangeStarted = it.optBoolean("exchangeStarted"),
             )
         }
         val account = value.optionalObject("account")?.let {
@@ -92,12 +92,11 @@ internal object CorosAuthorizationCodec {
         .put("expiresAt", value.expiresAt)
         .putOptional("ticket", value.ticket)
         .putOptional("code", value.code)
-        .putOptional("claimStarted", value.claimStarted)
-        .putOptional("ticketStarted", value.ticketStarted)
-        .putOptional("exchangeStarted", value.exchangeStarted)
+        .put("claimStarted", value.claimStarted)
+        .put("ticketStarted", value.ticketStarted)
+        .put("exchangeStarted", value.exchangeStarted)
 
     private fun JSONObject.optionalObject(key: String): JSONObject? = if (has(key)) getJSONObject(key) else null
     private fun JSONObject.optionalString(key: String): String? = if (has(key)) getString(key) else null
-    private fun JSONObject.optionalBoolean(key: String): Boolean? = if (has(key)) optBoolean(key) else null
     private fun JSONObject.putOptional(key: String, value: Any?): JSONObject = apply { if (value != null) put(key, value) }
 }

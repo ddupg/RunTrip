@@ -85,7 +85,8 @@ class RaceReliabilityTest {
         assertEquals("原名称", vm.uiState.value.draft.name)
         gate.complete(Unit)
         advanceUntilIdle()
-        assertNotNull(vm.uiState.value.saveError)
+        assertFalse(vm.uiState.value.isSaving)
+        assertEquals("保存失败，请重试", vm.uiState.value.saveError)
         vm.updateDraft(draft.copy(name = "新名称"))
         assertEquals("新名称", vm.uiState.value.draft.name)
     }
