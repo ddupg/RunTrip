@@ -80,6 +80,21 @@ class MeViewModelTest {
         assertEquals(SourceConnection.Unbound, model.uiState.value.sources.single().connection)
     }
 
+    @Test fun `interrupted authorization prompts restart instead of retrying`() = runTest(dispatcher) {
+        val connector = Connector().apply { state = SourceConnection.AuthorizationRestartRequired }
+        val model = MeViewModel(listOf(connector))
+        advanceUntilIdle()
+        assertEquals(0, connector.checks)
+        assertEquals("需要重新连接", connectionLabel(model.uiState.value.sources.single().connection))
+        model.openSource(DataSourceId.COROS)
+        assertEquals(DataSourceId.COROS, model.uiState.value.selectedSource)
+        model.disconnect(DataSourceId.COROS)
+        advanceUntilIdle()
+        model.openSource(DataSourceId.COROS)
+        advanceUntilIdle()
+        assertEquals(1, connector.starts)
+    }
+
     @Test fun `name replaces ID and absent name uses ID`() {
         assertEquals("Runner", accountLabel(SourceAccount("1234", " Runner ")))
         assertEquals("ID 1234", accountLabel(SourceAccount("1234", "  ")))

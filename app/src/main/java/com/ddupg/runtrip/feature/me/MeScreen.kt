@@ -97,6 +97,13 @@ fun MeRoute(connectors: List<DataSourceConnector>) {
                 },
                 dismissButton = { TextButton(onClick = { model.disconnect(id) }) { Text("取消连接") } },
             )
+            SourceConnection.AuthorizationRestartRequired -> AlertDialog(
+                onDismissRequest = model::dismissSource,
+                title = { Text("需要重新连接${sourceLabel(id)}") },
+                text = { Text("授权结果未能确认。请先取消连接，再重新发起授权。") },
+                confirmButton = { TextButton(onClick = { model.disconnect(id) }) { Text("取消连接") } },
+                dismissButton = { TextButton(onClick = model::dismissSource) { Text("稍后") } },
+            )
             SourceConnection.StorageError -> AlertDialog(
                 onDismissRequest = model::dismissSource,
                 title = { Text("重置${sourceLabel(id)}连接？") },

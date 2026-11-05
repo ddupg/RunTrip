@@ -15,6 +15,8 @@ import java.time.LocalDate
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -40,6 +42,7 @@ internal class CorosDataSourceConnector(
         }
         val pending = value.optJSONObject("pending")
         return when {
+            pending != null && listOf("claimStarted", "ticketStarted", "exchangeStarted").any { pending.optBoolean(it) } -> SourceConnection.AuthorizationRestartRequired
             pending != null -> SourceConnection.Authorizing(pending.getString("loginUrl"))
             value.has("credentials") -> SourceConnection.Authorizing(null)
             else -> SourceConnection.Unbound
@@ -93,6 +96,7 @@ internal class CorosDataSourceConnector(
                 throw SourceAuthorizationExpired()
             }
             if (!pending.has("ticket") && !pending.has("code")) {
+                currentCoroutineContext().ensureActive()
                 if (pending.optBoolean("claimStarted")) throw SourceProtocolException()
                 val result = withContext(NonCancellable) {
                     pending.put("claimStarted", true)
@@ -105,6 +109,7 @@ internal class CorosDataSourceConnector(
                     store.write(id, value)
                     claimed
                 }
+                currentCoroutineContext().ensureActive()
                 when (result.getString("status").lowercase(java.util.Locale.ROOT)) {
                     "pending" -> return connection(value)
                     "authorized" -> Unit
@@ -113,6 +118,7 @@ internal class CorosDataSourceConnector(
                 }
             }
             if (!pending.has("code")) {
+                currentCoroutineContext().ensureActive()
                 if (pending.optBoolean("ticketStarted")) throw SourceProtocolException()
                 withContext(NonCancellable) {
                     pending.put("ticketStarted", true)
@@ -123,6 +129,7 @@ internal class CorosDataSourceConnector(
                     store.write(id, value)
                 }
             }
+            currentCoroutineContext().ensureActive()
             if (pending.optBoolean("exchangeStarted")) throw SourceProtocolException()
             withContext(NonCancellable) {
                 pending.put("exchangeStarted", true)
@@ -133,6 +140,7 @@ internal class CorosDataSourceConnector(
                 store.write(id, value)
             }
         }
+        currentCoroutineContext().ensureActive()
         var credentials = value.optJSONObject("credentials") ?: return SourceConnection.Unbound
         var refreshed = false
         if (credentials.getLong("expiresAt") <= clock.instant().epochSecond) {
@@ -140,11 +148,13 @@ internal class CorosDataSourceConnector(
             refreshed = true
         }
         if (!value.has("account")) {
+            currentCoroutineContext().ensureActive()
             val account = try {
                 api.account(credentials.getString("issuer"), credentials.getString("accessToken"))
             } catch (rejected: CorosAccessTokenRejected) {
                 if (refreshed) throw rejected
                 credentials = refresh(value, credentials)
+                currentCoroutineContext().ensureActive()
                 api.account(credentials.getString("issuer"), credentials.getString("accessToken"))
             }
             value.put("account", JSONObject().put("id", account.id).put("name", account.name ?: JSONObject.NULL))
@@ -184,11 +194,13 @@ internal class CorosDataSourceConnector(
                     credentials = refresh(value, credentials)
                     refreshed = true
                 }
+                currentCoroutineContext().ensureActive()
                 try {
                     api.training(credentials.getString("issuer"), credentials.getString("accessToken"), start, end, limit)
                 } catch (rejected: CorosAccessTokenRejected) {
                     if (refreshed) throw rejected
                     credentials = refresh(value, credentials)
+                    currentCoroutineContext().ensureActive()
                     api.training(credentials.getString("issuer"), credentials.getString("accessToken"), start, end, limit)
                 }
             } catch (expired: SourceAuthorizationExpired) {

@@ -8,6 +8,8 @@ import com.ddupg.runtrip.data.source.SourceStore
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -216,10 +218,58 @@ class CorosDataSourceConnectorTest {
         connector.beginAuthorization()
         try { connector.completeAuthorization(); fail("exchange should fail") } catch (_: java.io.IOException) { }
         service.exchangeFails = false
+        assertEquals(SourceConnection.AuthorizationRestartRequired, connector.connection())
         try { connector.completeAuthorization(); fail("must not replay") } catch (_: SourceProtocolException) { }
         assertEquals(1, service.tokenExchanges)
         connector.disconnect()
         assertEquals(SourceConnection.Unbound, connector.connection())
+    }
+
+    @Test
+    fun `cancellation during claim persists ticket without starting authorize`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply { authorized = true }
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var authorizes = 0
+        val transport = CorosHttpTransport { method, url, headers, body ->
+            if (url.endsWith("/claim")) { entered.complete(Unit); release.await() }
+            if (url.contains("/oauth2/authorize")) authorizes++
+            service.request(method, url, headers, body)
+        }
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(transport), clock, StandardTestDispatcher(testScheduler))
+        connector.beginAuthorization()
+        val job = launch { connector.completeAuthorization() }
+        entered.await()
+        job.cancel()
+        release.complete(Unit)
+        job.join()
+        assertEquals(0, authorizes)
+        assertEquals(0, service.tokenExchanges)
+        assertTrue(JSONObject(store.json!!).getJSONObject("pending").has("ticket"))
+        assertTrue(connector.completeAuthorization() is SourceConnection.Bound)
+    }
+
+    @Test
+    fun `cancellation during ticket exchange persists code without starting token exchange`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply { authorized = true }
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val transport = CorosHttpTransport { method, url, headers, body ->
+            if (url.contains("/oauth2/authorize")) { entered.complete(Unit); release.await() }
+            service.request(method, url, headers, body)
+        }
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(transport), clock, StandardTestDispatcher(testScheduler))
+        connector.beginAuthorization()
+        val job = launch { connector.completeAuthorization() }
+        entered.await()
+        job.cancel()
+        release.complete(Unit)
+        job.join()
+        assertEquals(0, service.tokenExchanges)
+        assertTrue(JSONObject(store.json!!).getJSONObject("pending").has("code"))
+        assertTrue(connector.completeAuthorization() is SourceConnection.Bound)
     }
 
     @Test
