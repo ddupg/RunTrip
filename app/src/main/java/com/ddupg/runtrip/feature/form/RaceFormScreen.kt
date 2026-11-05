@@ -426,34 +426,20 @@ private fun RaceFormContent(
             )
         }
         item {
-            RunTripControlTheme {
-                OutlinedTextField(
-                    enabled = !uiState.isSaving,
-                    value = draft.hotelName,
-                    onValueChange = { value ->
-                        onDraftChange(draft.copy(hotelName = value))
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("酒店名称") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                )
-            }
+            SingleLineFormField(
+                value = draft.hotelName,
+                onValueChange = { onDraftChange(draft.copy(hotelName = it)) },
+                label = "酒店名称",
+                enabled = !uiState.isSaving,
+            )
         }
         item {
-            RunTripControlTheme {
-                OutlinedTextField(
-                    enabled = !uiState.isSaving,
-                    value = draft.bookingPlatform,
-                    onValueChange = { value ->
-                        onDraftChange(draft.copy(bookingPlatform = value))
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("预订平台") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                )
-            }
+            SingleLineFormField(
+                value = draft.bookingPlatform,
+                onValueChange = { onDraftChange(draft.copy(bookingPlatform = it)) },
+                label = "预订平台",
+                enabled = !uiState.isSaving,
+            )
         }
         item {
             RunTripControlTheme {
@@ -517,6 +503,26 @@ private fun RaceFormContent(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SingleLineFormField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    enabled: Boolean,
+) {
+    RunTripControlTheme {
+        OutlinedTextField(
+            enabled = enabled,
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(label) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+        )
     }
 }
 
