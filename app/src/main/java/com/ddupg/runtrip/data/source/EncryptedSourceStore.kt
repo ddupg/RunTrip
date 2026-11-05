@@ -46,7 +46,13 @@ internal class EncryptedSourceStore(
 ) : SourceStore {
     private fun file(id: DataSourceId) = AtomicFile(File(directory, "${id.code}.bin"))
 
-    override fun read(id: DataSourceId): JSONObject? {
+    override fun read(id: DataSourceId): JSONObject? = try {
+        readEnvelope(id)
+    } catch (error: Exception) {
+        throw SourceStoreReadException(error)
+    }
+
+    private fun readEnvelope(id: DataSourceId): JSONObject? {
         val file = file(id)
         val bytes = try {
             file.readFully()

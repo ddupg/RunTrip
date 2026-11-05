@@ -8,6 +8,8 @@ import com.ddupg.runtrip.data.source.SourceStore
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -24,7 +26,11 @@ import org.robolectric.annotation.Config
 class CorosDataSourceConnectorTest {
     private class Store : SourceStore {
         var json: String? = null
-        override fun read(id: DataSourceId) = json?.let(::JSONObject)
+        var onRead: (() -> Unit)? = null
+        override fun read(id: DataSourceId): JSONObject? {
+            onRead?.invoke()
+            return json?.let(::JSONObject)
+        }
         override fun write(id: DataSourceId, value: JSONObject) { json = value.toString() }
         override fun clear(id: DataSourceId) { json = null }
     }
@@ -125,7 +131,7 @@ class CorosDataSourceConnectorTest {
     }
 
     @Test
-    fun `discovery cannot send credentials to an unrelated host`() {
+    fun `discovery cannot send credentials to an unrelated host`() = runTest {
         val service = TestCorosService().apply { issuer = "https://untrusted.example" }
         try { CorosOAuthApi(service).discoverIssuer(); fail("Untrusted issuer") } catch (_: SourceProtocolException) { }
         assertEquals(0, service.registrations)
@@ -161,7 +167,7 @@ class CorosDataSourceConnectorTest {
     }
 
     @Test
-    fun `training unauthorized clears the local connection`() = runTest {
+    fun `training unauthorized retries once and preserves connection`() = runTest {
         val store = Store()
         val service = TestCorosService().apply { authorized = true; trainingUnauthorized = true }
         val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
@@ -169,9 +175,156 @@ class CorosDataSourceConnectorTest {
         connector.completeAuthorization()
         try {
             connector.readTraining("synthetic-account-id", java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-31"), 1000)
-            fail("Revoked credential must not stay bound")
-        } catch (_: SourceAuthorizationExpired) { }
-        assertNull(store.json)
+            fail("Repeated rejection must be reported")
+        } catch (_: CorosAccessTokenRejected) { }
+        assertEquals(1, service.refreshes)
+        assertTrue(connector.connection() is SourceConnection.Bound)
+    }
+
+    @Test
+    fun `rejected access token rotates once and retries training`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply {
+            authorized = true
+            rejectOldTrainingToken = true
+            trainingText = "No sport records found from 2026-10-01 to 2026-10-31."
+        }
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        connector.beginAuthorization()
+        connector.completeAuthorization()
+        assertTrue(connector.readTraining("synthetic-account-id", java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-31"), 1000).isEmpty())
+        assertEquals(1, service.refreshes)
+        assertTrue(store.json!!.contains("synthetic-refresh-1"))
+    }
+
+    @Test
+    fun `corrupt credentials expose reset without silently clearing`() = runTest {
+        var cleared = false
+        val store = object : SourceStore {
+            override fun read(id: DataSourceId): JSONObject? {
+                if (!cleared) throw com.ddupg.runtrip.data.source.SourceStoreReadException(IllegalStateException())
+                return null
+            }
+            override fun write(id: DataSourceId, value: JSONObject) = error("must not write")
+            override fun clear(id: DataSourceId) { cleared = true }
+        }
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(TestCorosService()), clock, StandardTestDispatcher(testScheduler))
+        assertEquals(SourceConnection.StorageError, connector.connection())
+        assertFalse(cleared)
+        connector.disconnect()
+        assertEquals(SourceConnection.Unbound, connector.connection())
+    }
+
+    @Test
+    fun `lost exchange response does not replay one time authorization code`() = runTest {
+        val service = TestCorosService().apply { authorized = true; exchangeFails = true }
+        val connector = CorosDataSourceConnector(Store(), CorosOAuthApi(service), clock, StandardTestDispatcher(testScheduler))
+        connector.beginAuthorization()
+        try { connector.completeAuthorization(); fail("exchange should fail") } catch (_: java.io.IOException) { }
+        service.exchangeFails = false
+        assertEquals(SourceConnection.AuthorizationRestartRequired, connector.connection())
+        try { connector.completeAuthorization(); fail("must not replay") } catch (_: SourceProtocolException) { }
+        assertEquals(1, service.tokenExchanges)
+        connector.disconnect()
+        assertEquals(SourceConnection.Unbound, connector.connection())
+    }
+
+    @Test
+    fun `cancellation during snapshot prevents starting refresh`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply { authorized = true }
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(service), clock, dispatcher)
+        connector.beginAuthorization()
+        connector.completeAuthorization()
+        val later = CorosDataSourceConnector(store, CorosOAuthApi(service), Clock.offset(clock, java.time.Duration.ofHours(2)), dispatcher)
+        lateinit var request: kotlinx.coroutines.Job
+        store.onRead = { request.cancel() }
+        request = launch {
+            later.readTraining("synthetic-account-id", java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-31"), 1000)
+        }
+        request.join()
+        assertTrue(request.isCancelled)
+        assertEquals(0, service.refreshes)
+        assertTrue(store.json!!.contains("synthetic-refresh-0"))
+    }
+
+    @Test
+    fun `cancellation during refresh persists rotated credentials`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply { authorized = true }
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val transport = CorosHttpTransport { method, url, headers, body ->
+            if (url.endsWith("/oauth2/token") && body?.contains("grant_type=refresh_token") == true) {
+                entered.complete(Unit)
+                release.await()
+            }
+            service.request(method, url, headers, body)
+        }
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(transport), clock, dispatcher)
+        connector.beginAuthorization()
+        connector.completeAuthorization()
+        val later = CorosDataSourceConnector(store, CorosOAuthApi(transport), Clock.offset(clock, java.time.Duration.ofHours(2)), dispatcher)
+        val request = launch {
+            later.readTraining("synthetic-account-id", java.time.LocalDate.parse("2026-10-01"), java.time.LocalDate.parse("2026-10-31"), 1000)
+        }
+        entered.await()
+        request.cancel()
+        release.complete(Unit)
+        request.join()
+        assertTrue(request.isCancelled)
+        assertEquals(1, service.refreshes)
+        assertTrue(store.json!!.contains("synthetic-refresh-1"))
+        assertNull(service.trainingArguments)
+    }
+
+    @Test
+    fun `cancellation during claim persists ticket without starting authorize`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply { authorized = true }
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var authorizes = 0
+        val transport = CorosHttpTransport { method, url, headers, body ->
+            if (url.endsWith("/claim")) { entered.complete(Unit); release.await() }
+            if (url.contains("/oauth2/authorize")) authorizes++
+            service.request(method, url, headers, body)
+        }
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(transport), clock, StandardTestDispatcher(testScheduler))
+        connector.beginAuthorization()
+        val job = launch { connector.completeAuthorization() }
+        entered.await()
+        job.cancel()
+        release.complete(Unit)
+        job.join()
+        assertEquals(0, authorizes)
+        assertEquals(0, service.tokenExchanges)
+        assertTrue(JSONObject(store.json!!).getJSONObject("pending").has("ticket"))
+        assertTrue(connector.completeAuthorization() is SourceConnection.Bound)
+    }
+
+    @Test
+    fun `cancellation during ticket exchange persists code without starting token exchange`() = runTest {
+        val store = Store()
+        val service = TestCorosService().apply { authorized = true }
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val transport = CorosHttpTransport { method, url, headers, body ->
+            if (url.contains("/oauth2/authorize")) { entered.complete(Unit); release.await() }
+            service.request(method, url, headers, body)
+        }
+        val connector = CorosDataSourceConnector(store, CorosOAuthApi(transport), clock, StandardTestDispatcher(testScheduler))
+        connector.beginAuthorization()
+        val job = launch { connector.completeAuthorization() }
+        entered.await()
+        job.cancel()
+        release.complete(Unit)
+        job.join()
+        assertEquals(0, service.tokenExchanges)
+        assertTrue(JSONObject(store.json!!).getJSONObject("pending").has("code"))
+        assertTrue(connector.completeAuthorization() is SourceConnection.Bound)
     }
 
     @Test

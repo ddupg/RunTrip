@@ -42,7 +42,7 @@ class EncryptedSourceStoreTest {
         val bytes = file.readBytes()
         bytes[bytes.lastIndex] = (bytes.last().toInt() xor 1).toByte()
         file.writeBytes(bytes)
-        try { store.read(DataSourceId.COROS); fail("Authentication tag must be verified") } catch (_: AEADBadTagException) { }
+        try { store.read(DataSourceId.COROS); fail("Authentication tag must be verified") } catch (error: SourceStoreReadException) { assertTrue(error.cause is AEADBadTagException) }
         assertArrayEquals(bytes, file.readBytes())
     }
 }

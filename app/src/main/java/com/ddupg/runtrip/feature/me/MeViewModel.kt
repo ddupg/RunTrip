@@ -34,6 +34,8 @@ fun accountLabel(account: SourceAccount): String = account.name?.trim()?.takeIf 
 
 fun connectionLabel(connection: SourceConnection): String = when (connection) {
     SourceConnection.Unbound -> "未绑定"
+    SourceConnection.StorageError -> "连接信息无法读取"
+    SourceConnection.AuthorizationRestartRequired -> "需要重新连接"
     is SourceConnection.Authorizing -> "等待完成授权"
     is SourceConnection.Bound -> accountLabel(connection.account)
 }
@@ -80,6 +82,10 @@ class MeViewModel(private val connectors: List<DataSourceConnector>) : ViewModel
                 } catch (_: Exception) {
                     mutableState.update { it.copy(error = "无法读取连接信息，请重试") }
                 }
+                if (mutableState.value.sources.any { it.connection == SourceConnection.AuthorizationRestartRequired }) {
+                    failedAction = null
+                    mutableState.update { it.copy(error = null) }
+                }
                 mutableState.update { it.copy(isWorking = false) }
                 if (resumePending) onResume()
             }
@@ -94,7 +100,7 @@ class MeViewModel(private val connectors: List<DataSourceConnector>) : ViewModel
         resumePending = false
         perform {
             reload()
-            connectors.forEach { source ->
+            connectors.filter { source -> mutableState.value.sources.single { it.id == source.id }.connection !in setOf(SourceConnection.StorageError, SourceConnection.AuthorizationRestartRequired) }.forEach { source ->
                 try {
                     source.completeAuthorization()
                 } catch (expired: SourceAuthorizationExpired) {
