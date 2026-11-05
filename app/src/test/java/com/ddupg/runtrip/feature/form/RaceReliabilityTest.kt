@@ -90,4 +90,3 @@ class RaceReliabilityTest {
         assertEquals("新名称", vm.uiState.value.draft.name)
     }
 }
-

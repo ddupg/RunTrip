@@ -1,89 +1,15 @@
 package com.ddupg.runtrip.data.source.coros
 
-import com.ddupg.runtrip.data.source.SourceAccount
 import com.ddupg.runtrip.data.source.SourceAuthorizationExpired
 import com.ddupg.runtrip.data.source.SourceProtocolException
-import java.io.ByteArrayOutputStream
-import java.net.HttpURLConnection
-import java.net.SocketTimeoutException
 import java.net.URI
 import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Base64
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import org.json.JSONArray
 import org.json.JSONObject
-
-internal class CorosHttpResponse(val status: Int, val body: String, val location: String? = null)
-
-internal fun interface CorosHttpTransport {
-    suspend fun request(method: String, url: String, headers: Map<String, String>, body: String?): CorosHttpResponse
-}
-
-internal class UrlConnectionCorosTransport(private val totalTimeoutMillis: Long = 30_000) : CorosHttpTransport {
-    companion object {
-        private val deadlines = Executors.newSingleThreadScheduledExecutor { task ->
-            Thread(task, "coros-deadlines").apply { isDaemon = true }
-        }
-    }
-
-    override suspend fun request(method: String, url: String, headers: Map<String, String>, body: String?): CorosHttpResponse =
-        suspendCancellableCoroutine { continuation ->
-            val connection = URI(url).toURL().openConnection() as HttpURLConnection
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 15_000
-            val finished = AtomicBoolean(false)
-            fun disconnect() { Thread { connection.disconnect() }.apply { isDaemon = true; start() } }
-            val deadline = deadlines.schedule({
-                if (finished.compareAndSet(false, true)) {
-                    continuation.resumeWithException(SocketTimeoutException("COROS request deadline exceeded"))
-                    disconnect()
-                }
-            }, totalTimeoutMillis, TimeUnit.MILLISECONDS)
-            continuation.invokeOnCancellation {
-                if (finished.compareAndSet(false, true)) disconnect()
-                deadline.cancel(false)
-            }
-            Thread {
-                try {
-                    if (finished.get()) return@Thread
-                    connection.requestMethod = method
-                    connection.instanceFollowRedirects = false
-                    headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }
-                    if (body != null) {
-                        connection.doOutput = true
-                        connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-                    }
-                    val status = connection.responseCode
-                    val stream = if (status < 400) connection.inputStream else connection.errorStream
-                    val content = ByteArrayOutputStream()
-                    stream?.use {
-                        val buffer = ByteArray(8192)
-                        while (!finished.get()) {
-                            val count = it.read(buffer)
-                            if (count < 0) break
-                            content.write(buffer, 0, count)
-                        }
-                    }
-                    val response = CorosHttpResponse(status, content.toString(Charsets.UTF_8.name()), connection.getHeaderField("Location"))
-                    if (finished.compareAndSet(false, true)) continuation.resume(response)
-                } catch (error: Exception) {
-                    if (finished.compareAndSet(false, true)) continuation.resumeWithException(error)
-                } finally {
-                    deadline.cancel(false)
-                    connection.disconnect()
-                }
-            }.apply { isDaemon = true; start() }
-        }
-}
 
 internal class CorosAccessTokenRejected : Exception()
 
@@ -105,7 +31,7 @@ internal class CorosOAuthApi(private val transport: CorosHttpTransport = UrlConn
         }
     }
 
-    private suspend fun request(
+    internal suspend fun request(
         method: String,
         url: String,
         headers: Map<String, String> = emptyMap(),
@@ -119,7 +45,7 @@ internal class CorosOAuthApi(private val transport: CorosHttpTransport = UrlConn
         return transport.request(method, url, headers, body)
     }
 
-    private fun checked(response: CorosHttpResponse): JSONObject {
+    internal fun checked(response: CorosHttpResponse): JSONObject {
         if (response.status !in 200..299) throw SourceProtocolException()
         return JSONObject(response.body)
     }
@@ -157,17 +83,17 @@ internal class CorosOAuthApi(private val transport: CorosHttpTransport = UrlConn
         return checked(request("POST", "$issuer/api/v1/cli/login-sessions/$sessionId/claim", mapOf("X-Poll-Token" to pollToken)))
     }
 
-    suspend fun authorizationCode(pending: JSONObject, ticket: String): String {
+    suspend fun authorizationCode(pending: CorosPendingAuthorization, ticket: String): String {
         val query = form(
             mapOf(
-                "response_type" to "code", "client_id" to pending.getString("clientId"),
+                "response_type" to "code", "client_id" to pending.clientId,
                 "redirect_uri" to REDIRECT, "scope" to SCOPES,
-                "code_challenge" to pkceChallenge(pending.getString("verifier")),
-                "code_challenge_method" to "S256", "resource" to "${pending.getString("issuer")}/mcp",
-                "state" to pending.getString("state"), "login_ticket" to ticket,
+                "code_challenge" to pkceChallenge(pending.verifier),
+                "code_challenge_method" to "S256", "resource" to "${pending.issuer}/mcp",
+                "state" to pending.state, "login_ticket" to ticket,
             ),
         )
-        val response = request("GET", "${pending.getString("issuer")}/oauth2/authorize?$query")
+        val response = request("GET", "${pending.issuer}/oauth2/authorize?$query")
         if (response.status !in listOf(302, 303)) throw SourceProtocolException()
         val redirect = URI(response.location ?: throw SourceProtocolException())
         if (redirect.scheme != "http" || redirect.host != "127.0.0.1" || redirect.port != 43123 || redirect.path != "/callback") {
@@ -177,15 +103,15 @@ internal class CorosOAuthApi(private val transport: CorosHttpTransport = UrlConn
             val pair = part.split('=', limit = 2)
             java.net.URLDecoder.decode(pair[0], "UTF-8") to java.net.URLDecoder.decode(pair.getOrElse(1) { "" }, "UTF-8")
         }
-        if (parameters["state"] != pending.getString("state")) throw SourceProtocolException()
+        if (parameters["state"] != pending.state) throw SourceProtocolException()
         return parameters["code"]?.takeIf { it.isNotBlank() } ?: throw SourceProtocolException()
     }
 
-    suspend fun exchange(pending: JSONObject): JSONObject = tokenRequest(
-        pending.getString("issuer"),
-        mapOf("grant_type" to "authorization_code", "client_id" to pending.getString("clientId"),
-              "code" to pending.getString("code"), "redirect_uri" to REDIRECT,
-              "code_verifier" to pending.getString("verifier")),
+    suspend fun exchange(pending: CorosPendingAuthorization): JSONObject = tokenRequest(
+        pending.issuer,
+        mapOf("grant_type" to "authorization_code", "client_id" to pending.clientId,
+              "code" to pending.code!!, "redirect_uri" to REDIRECT,
+              "code_verifier" to pending.verifier),
     )
 
     suspend fun refresh(issuer: String, clientId: String, refreshToken: String): JSONObject = tokenRequest(
@@ -204,58 +130,10 @@ internal class CorosOAuthApi(private val transport: CorosHttpTransport = UrlConn
         return token
     }
 
-    suspend fun account(issuer: String, accessToken: String): SourceAccount {
-        val headers = mapOf("Authorization" to "Bearer $accessToken", "Accept" to "application/json, text/event-stream")
-        val userResponse = request("GET", "$issuer/userinfo", headers)
-        if (userResponse.status == 401) throw CorosAccessTokenRejected()
-        val user = checked(userResponse)
-        val subject = user.getString("sub").takeIf { it.isNotBlank() } ?: throw SourceProtocolException()
-        mcp(issuer, headers, "initialize", JSONObject().put("protocolVersion", "2025-06-18")
-            .put("capabilities", JSONObject()).put("clientInfo", JSONObject().put("name", "RunTrip").put("version", "1.0")))
-        val profile = mcp(issuer, headers, "tools/call", JSONObject().put("name", "queryUserInfo").put("arguments", JSONObject()))
-        if (profile.optBoolean("isError")) throw SourceProtocolException()
-        val content = profile.getJSONArray("content")
-        var name: String? = null
-        for (index in 0 until content.length()) {
-            val item = content.getJSONObject(index)
-            if (item.optString("type") != "text") continue
-            val text = org.json.JSONTokener(item.getString("text")).nextValue() as? String ?: throw SourceProtocolException()
-            val match = Regex("(?m)^Nickname:[ \\t]*([^\\r\\n]*)").find(text)
-            if (match != null) name = match.groupValues[1].trim().takeIf { it.isNotEmpty() }
-        }
-        return SourceAccount(id = subject, name = name)
-    }
+    private val mcp = CorosMcpApi(this)
 
-    private suspend fun mcp(issuer: String, headers: Map<String, String>, method: String, params: JSONObject): JSONObject {
-        val response = request("POST", "$issuer/mcp", headers + ("Content-Type" to "application/json"),
-            JSONObject().put("jsonrpc", "2.0").put("id", if (method == "initialize") 1 else 2)
-                .put("method", method).put("params", params).toString())
-        if (response.status == 401) throw CorosAccessTokenRejected()
-        if (response.status != 200) throw SourceProtocolException()
-        // COROS may frame JSON-RPC responses as SSE, as in the official helper.
-        val json = if (response.body.trimStart().startsWith("{")) response.body else {
-            val events = response.body.replace("\r\n", "\n").split("\n\n")
-            events.map { event ->
-                event.lineSequence().filter { it.startsWith("data:") }
-                    .joinToString("\n") { it.removePrefix("data:").trimStart() }
-            }.lastOrNull { it.isNotBlank() } ?: throw SourceProtocolException()
-        }
-        val envelope = JSONObject(json)
-        if (envelope.has("error")) throw SourceProtocolException()
-        return envelope.getJSONObject("result")
-    }
+    suspend fun account(issuer: String, accessToken: String) = mcp.account(issuer, accessToken)
 
-    suspend fun training(issuer: String, accessToken: String, start: LocalDate, end: LocalDate, limit: Int) = run {
-        val headers = mapOf("Authorization" to "Bearer $accessToken", "Accept" to "application/json, text/event-stream")
-        mcp(issuer, headers, "initialize", JSONObject().put("protocolVersion", "2025-06-18")
-            .put("capabilities", JSONObject()).put("clientInfo", JSONObject().put("name", "RunTrip").put("version", "1.0")))
-        val arguments = JSONObject()
-            .put("startDate", start.format(DateTimeFormatter.BASIC_ISO_DATE))
-            .put("endDate", end.format(DateTimeFormatter.BASIC_ISO_DATE))
-            .put("sportTypeCodes", JSONArray(CorosTrainingParser.subtypes.keys.toList())).put("limit", limit)
-        CorosTrainingParser.parse(
-            mcp(issuer, headers, "tools/call", JSONObject().put("name", "querySportRecords").put("arguments", arguments)),
-            start, end,
-        )
-    }
+    suspend fun training(issuer: String, accessToken: String, start: LocalDate, end: LocalDate, limit: Int) =
+        mcp.training(issuer, accessToken, start, end, limit)
 }
