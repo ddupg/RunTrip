@@ -21,7 +21,7 @@ Debug APK 位于 `app/build/outputs/apk/debug/`。连接设备或启动模拟器
 
 应用使用 Kotlin、Compose、Material 3、Room 和 ViewModel。`RaceRepository` 是比赛持久化边界；比赛草稿、校验与保存由表单逻辑管理，`RacePresentation` 统一中文展示。运动大类各自维护详情、草稿与展示，公共流程负责分派。比赛和工具行为见[专项文档](race-tools-behavior.md)。
 
-应用仅在用户主动授权高驰后访问网络；连接和训练导入分别见[高驰连接可靠性](coros-connection.md)与[训练数据导入](training-data.md)。比赛、工具和已保存的训练记录可离线使用。
+应用联网仅用于用户主动发起的高驰连接及后续授权、账号资料与训练记录读取；连接和训练导入分别见[高驰连接可靠性](coros-connection.md)与[训练数据导入](training-data.md)。比赛、工具和已保存的训练记录可离线使用。
 
 ## 数据与兼容
 
