@@ -62,9 +62,11 @@ class TrainingViewModelTest {
         runCurrent()
         assertEquals(1, repo.updates)
         assertTrue(model.uiState.value.updating)
+        assertFalse(model.uiState.value.historyComplete)
         repo.gate!!.complete(Unit)
         advanceUntilIdle()
         assertFalse(model.uiState.value.updating)
+        assertTrue(model.uiState.value.historyComplete)
         assertNull(model.uiState.value.error)
     }
 
@@ -76,6 +78,7 @@ class TrainingViewModelTest {
         model.onResume()
         advanceUntilIdle()
         assertEquals(0, repo.updates)
+        assertTrue(model.uiState.value.historyComplete)
         assertEquals(listOf(record), model.uiState.value.records)
         model.update()
         advanceUntilIdle()
@@ -105,6 +108,19 @@ class TrainingViewModelTest {
         advanceUntilIdle()
         assertFalse(model.uiState.value.connected)
         assertTrue(model.uiState.value.records.isEmpty())
+        assertFalse(model.uiState.value.historyComplete)
+    }
+
+    @Test fun interruptedInitialImportKeepsStatisticsIncompleteUntilRetryFinishes() = runTest(dispatcher) {
+        val repo = Repository().apply { failure = IOException() }
+        val model = TrainingViewModel(repo)
+        model.onResume()
+        advanceUntilIdle()
+        assertFalse(model.uiState.value.historyComplete)
+        repo.failure = null
+        model.update()
+        advanceUntilIdle()
+        assertTrue(model.uiState.value.historyComplete)
     }
 
     @Test fun expiredCredentialsHideCacheAndExplainReconnect() = runTest(dispatcher) {

@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -47,16 +48,23 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ddupg.runtrip.data.model.TrainingActivity
 import com.ddupg.runtrip.data.model.TrainingSport
+import com.ddupg.runtrip.data.model.TrainingPreferences
 import com.ddupg.runtrip.data.repository.TrainingRepository
+import com.ddupg.runtrip.data.repository.TrainingPreferencesRepository
+import com.ddupg.runtrip.feature.home.SystemDaySource
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZonedDateTime
 
 @Composable
-fun TrainingRoute(repository: TrainingRepository, onConnect: () -> Unit) {
+fun TrainingRoute(repository: TrainingRepository, preferencesRepository: TrainingPreferencesRepository, onConnect: () -> Unit) {
     val model: TrainingViewModel = viewModel(factory = TrainingViewModel.Factory(repository))
     val state by model.uiState.collectAsStateWithLifecycle()
+    val preferences by preferencesRepository.preferences.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     var zone by remember { mutableStateOf(ZoneId.systemDefault()) }
+    val daySource = remember(zone) { SystemDaySource { ZonedDateTime.now(zone) }.observeToday() }
+    val today by daySource.collectAsStateWithLifecycle(initialValue = LocalDate.now(zone))
     DisposableEffect(lifecycleOwner, model) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -67,7 +75,7 @@ fun TrainingRoute(repository: TrainingRepository, onConnect: () -> Unit) {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    TrainingScreen(state, model::selectFilter, model::update, onConnect, zone)
+    TrainingScreen(state, model::selectFilter, model::update, onConnect, zone, preferences, today)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,8 +86,11 @@ fun TrainingScreen(
     onUpdate: () -> Unit,
     onConnect: () -> Unit,
     zone: ZoneId = ZoneId.systemDefault(),
+    preferences: TrainingPreferences = TrainingPreferences(),
+    today: LocalDate = LocalDate.now(zone),
 ) {
     val days = remember(state.records, state.filter, zone) { trainingDays(state.records, state.filter, zone) }
+    var statistics by rememberSaveable { mutableStateOf(false) }
     Scaffold(topBar = {
         TopAppBar(
             colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
@@ -91,7 +102,8 @@ fun TrainingScreen(
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (state.connected) {
-                TrainingFilters(state.filter, onFilter)
+                TrainingTextTabs(listOf(false to "记录", true to "统计"), statistics, { statistics = it })
+                if (!statistics) TrainingFilters(state.filter, onFilter)
                 state.progress?.let { progress ->
                     Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -119,13 +131,15 @@ fun TrainingScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                     TextButton(onClick = onConnect, modifier = Modifier.padding(top = 12.dp)) { Text("前往「我」连接") }
                 }
+                statistics -> TrainingStatisticsContent(state.records, preferences, zone, today,
+                    historyComplete = state.historyComplete && !state.updating && state.error == null)
                 days.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(if (state.updating) "正在获取训练记录…" else "暂无训练记录", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 else -> LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                     days.forEach { day ->
                         item(key = "date-${day.date}") {
-                            Text(trainingDateLabel(day.date, LocalDate.now(zone)),
+                            Text(trainingDateLabel(day.date, today),
                                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
                         }
@@ -139,11 +153,15 @@ fun TrainingScreen(
 
 @Composable
 private fun TrainingFilters(selected: TrainingSport?, onFilter: (TrainingSport?) -> Unit) {
+    TrainingTextTabs(listOf(null to "全部", TrainingSport.RUNNING to "跑步", TrainingSport.CYCLING to "骑行", TrainingSport.SWIMMING to "游泳"), selected, onFilter)
+}
+
+@Composable
+internal fun <T> TrainingTextTabs(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
     FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        listOf(null to "全部", TrainingSport.RUNNING to "跑步", TrainingSport.CYCLING to "骑行", TrainingSport.SWIMMING to "游泳")
-            .forEach { (sport, label) ->
-                val active = selected == sport
-                Column(Modifier.widthIn(min = 48.dp).selectable(active, role = Role.Tab, onClick = { onFilter(sport) }),
+        options.forEach { (value, label) ->
+                val active = selected == value
+                Column(Modifier.widthIn(min = 48.dp).selectable(active, role = Role.Tab, onClick = { onSelect(value) }),
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.height(46.dp), contentAlignment = Alignment.Center) {
                         Text(label, style = MaterialTheme.typography.bodyLarge,

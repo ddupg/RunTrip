@@ -39,6 +39,7 @@ import com.ddupg.runtrip.feature.pace.PaceCalculatorScreen
 import com.ddupg.runtrip.feature.tools.ToolsScreen
 import com.ddupg.runtrip.feature.me.MeRoute
 import com.ddupg.runtrip.feature.training.TrainingRoute
+import com.ddupg.runtrip.feature.preferences.TrainingPreferencesRoute
 import com.ddupg.runtrip.navigation.RunTripRoutes
 import com.ddupg.runtrip.ui.theme.RunTripTheme
 
@@ -114,7 +115,8 @@ fun RunTripApp() {
                     )
                 }
                 composable(RunTripRoutes.TRAINING) {
-                    TrainingRoute(repository = application.trainingRepository, onConnect = {
+                    TrainingRoute(repository = application.trainingRepository,
+                        preferencesRepository = application.trainingPreferencesRepository, onConnect = {
                         navController.navigate(RunTripRoutes.ME) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
@@ -130,7 +132,12 @@ fun RunTripApp() {
                     )
                 }
                 composable(RunTripRoutes.ME) {
-                    MeRoute(connectors = application.dataSourceConnectors)
+                    MeRoute(connectors = application.dataSourceConnectors,
+                        onTrainingPreferences = { navController.navigate(RunTripRoutes.TRAINING_PREFERENCES) })
+                }
+                composable(RunTripRoutes.TRAINING_PREFERENCES) {
+                    TrainingPreferencesRoute(repository = application.trainingPreferencesRepository,
+                        onBack = { navController.popBackStack() })
                 }
                 composable(RunTripRoutes.PACE_CALCULATOR) {
                     PaceCalculatorScreen(onBack = { navController.popBackStack() })

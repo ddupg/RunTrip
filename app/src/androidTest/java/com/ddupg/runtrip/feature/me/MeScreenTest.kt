@@ -24,7 +24,7 @@ class MeScreenTest {
         var selected: DataSourceId? = null
         compose.setContent {
             RunTripTheme {
-                MeScreen(MeUiState(listOf(SourceRowState(DataSourceId.COROS))), { selected = it }, {})
+                MeScreen(MeUiState(listOf(SourceRowState(DataSourceId.COROS))), { selected = it }, {}, {})
             }
         }
         compose.onNodeWithText("数据来源").assert(!hasClickAction())
@@ -38,11 +38,18 @@ class MeScreenTest {
             RunTripTheme {
                 MeScreen(
                     MeUiState(listOf(SourceRowState(DataSourceId.COROS,
-                        SourceConnection.Bound(SourceAccount("12345678", "示例跑者"))))), {}, {},
+                        SourceConnection.Bound(SourceAccount("12345678", "示例跑者"))))), {}, {}, {},
                 )
             }
         }
         compose.onNodeWithText("示例跑者").assertExists()
         compose.onNodeWithText("ID 12345678").assertDoesNotExist()
+    }
+
+    @Test fun trainingPreferencesCanBeOpenedWithoutConnectingASource() {
+        var opened = false
+        compose.setContent { RunTripTheme { MeScreen(MeUiState(emptyList()), {}, {}, { opened = true }) } }
+        compose.onNodeWithText("训练偏好").performClick()
+        assertEquals(true, opened)
     }
 }

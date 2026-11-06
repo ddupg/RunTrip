@@ -18,7 +18,7 @@ fun trainingDays(records: List<TrainingActivity>, sport: TrainingSport?, zone: Z
         compareByDescending<TrainingActivity> { it.startEpochSeconds ?: Long.MIN_VALUE }.thenBy { it.id },
     )) }
 
-private fun trainingDate(activity: TrainingActivity, zone: ZoneId): LocalDate = activity.startEpochSeconds
+internal fun trainingDate(activity: TrainingActivity, zone: ZoneId): LocalDate = activity.startEpochSeconds
     ?.let { Instant.ofEpochSecond(it).atZone(zone).toLocalDate() } ?: activity.sourceDate
 
 fun trainingDateLabel(date: LocalDate, today: LocalDate): String =
