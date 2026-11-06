@@ -6,6 +6,7 @@ import com.ddupg.runtrip.data.repository.OfflineRaceRepository
 import com.ddupg.runtrip.data.repository.RaceRepository
 import com.ddupg.runtrip.data.repository.TrainingRepository
 import com.ddupg.runtrip.data.repository.LocalTrainingRepository
+import com.ddupg.runtrip.data.repository.LocalTrainingPreferencesRepository
 import com.ddupg.runtrip.data.region.RegionCatalog
 import com.ddupg.runtrip.data.source.DataSourceConnector
 import com.ddupg.runtrip.data.source.EncryptedSourceStore
@@ -37,4 +38,6 @@ class RunTripApplication : Application() {
     val trainingRepository: TrainingRepository by lazy {
         LocalTrainingRepository(database.trainingDao(), listOf(corosSource))
     }
+
+    val trainingPreferencesRepository by lazy { LocalTrainingPreferencesRepository(this) }
 }

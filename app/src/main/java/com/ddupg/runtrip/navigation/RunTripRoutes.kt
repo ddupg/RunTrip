@@ -5,6 +5,7 @@ object RunTripRoutes {
     const val TRAINING = "training"
     const val TOOLS = "tools"
     const val ME = "me"
+    const val TRAINING_PREFERENCES = "me/training-preferences"
     const val PACE_CALCULATOR = "tools/pace-calculator"
     const val RACE_ID_ARGUMENT = "raceId"
     const val RACE_DETAIL_PATTERN = "race/{$RACE_ID_ARGUMENT}/detail"

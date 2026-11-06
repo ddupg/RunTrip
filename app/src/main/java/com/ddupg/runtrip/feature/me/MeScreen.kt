@@ -45,7 +45,7 @@ import com.ddupg.runtrip.data.source.DataSourceId
 import com.ddupg.runtrip.data.source.SourceConnection
 
 @Composable
-fun MeRoute(connectors: List<DataSourceConnector>) {
+fun MeRoute(connectors: List<DataSourceConnector>, onTrainingPreferences: () -> Unit) {
     val model: MeViewModel = viewModel(factory = MeViewModel.Factory(connectors))
     val state by model.uiState.collectAsStateWithLifecycle()
     val authorizationUrl by model.authorizationUrl.collectAsStateWithLifecycle()
@@ -67,7 +67,7 @@ fun MeRoute(connectors: List<DataSourceConnector>) {
             }
         }
     }
-    MeScreen(state, model::openSource, model::retry)
+    MeScreen(state, model::openSource, model::retry, onTrainingPreferences)
     state.selectedSource?.let { id ->
         val connection = state.sources.single { it.id == id }.connection
         when (connection) {
@@ -118,7 +118,8 @@ fun MeRoute(connectors: List<DataSourceConnector>) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MeScreen(state: MeUiState, onOpenSource: (DataSourceId) -> Unit, onRetry: () -> Unit) {
+fun MeScreen(state: MeUiState, onOpenSource: (DataSourceId) -> Unit, onRetry: () -> Unit,
+    onTrainingPreferences: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -154,6 +155,11 @@ fun MeScreen(state: MeUiState, onOpenSource: (DataSourceId) -> Unit, onRetry: ()
             state.error?.let { error ->
                 Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                 TextButton(onClick = onRetry, enabled = !state.isWorking) { Text("重试") }
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 24.dp).heightIn(min = 60.dp)
+                .clickable(onClick = onTrainingPreferences), verticalAlignment = Alignment.CenterVertically) {
+                Text("训练偏好", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

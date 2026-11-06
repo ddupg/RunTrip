@@ -26,6 +26,7 @@ data class TrainingUiState(
     val filter: TrainingSport? = null,
     val updating: Boolean = false,
     val progress: TrainingImportProgress? = null,
+    val historyComplete: Boolean = false,
     val error: String? = null,
 )
 
@@ -49,7 +50,7 @@ class TrainingViewModel(private val repository: TrainingRepository) : ViewModel(
                     account = current
                     checkedAccount = true
                     mutableState.update { it.copy(connected = current != null, loading = current != null,
-                        records = emptyList(), updating = false, progress = null, error = null) }
+                        records = emptyList(), updating = false, progress = null, historyComplete = false, error = null) }
                     if (current != null) {
                         observation = viewModelScope.launch {
                             try {
@@ -65,7 +66,11 @@ class TrainingViewModel(private val repository: TrainingRepository) : ViewModel(
                         }
                     }
                 }
-                if (current != null && updating?.isActive != true && !repository.historyComplete(current)) update()
+                if (current != null) {
+                    val complete = repository.historyComplete(current)
+                    mutableState.update { it.copy(historyComplete = complete) }
+                    if (updating?.isActive != true && !complete) update()
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -84,6 +89,8 @@ class TrainingViewModel(private val repository: TrainingRepository) : ViewModel(
         updating = viewModelScope.launch {
             try {
                 repository.update(current) { progress -> mutableState.update { it.copy(progress = progress) } }
+                val complete = repository.historyComplete(current)
+                mutableState.update { it.copy(historyComplete = complete) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: SourceAuthorizationExpired) {
@@ -103,7 +110,7 @@ class TrainingViewModel(private val repository: TrainingRepository) : ViewModel(
     private fun clearAccount(message: String) {
         account = null
         observation?.cancel()
-        mutableState.update { it.copy(connected = false, loading = false, records = emptyList(), error = message) }
+        mutableState.update { it.copy(connected = false, loading = false, records = emptyList(), historyComplete = false, error = message) }
     }
 
     class Factory(private val repository: TrainingRepository) : ViewModelProvider.Factory {
