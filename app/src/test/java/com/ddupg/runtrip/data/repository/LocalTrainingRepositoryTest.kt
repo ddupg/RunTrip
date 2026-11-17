@@ -67,7 +67,7 @@ class LocalTrainingRepositoryTest {
         source.read = { _, _, _ -> listOf(record("new", LocalDate.parse("2026-11-02"), 5100.0)) }
         repo.update(account) { }
         assertEquals(1, source.reads.size)
-        assertEquals(LocalDate.parse("2026-11-02"), source.reads.single().first)
+        assertEquals(LocalDate.parse("2026-10-20") to LocalDate.parse("2026-11-02"), source.reads.single())
         assertEquals(2, repo.observe(account).first().size)
         assertEquals(5100.0, repo.observe(account).first().single { it.id == "new" }.distanceMeters!!, 0.0)
     }
@@ -87,7 +87,7 @@ class LocalTrainingRepositoryTest {
         source.read = { _, _, _ -> emptyList() }
         val restored = LocalTrainingRepository(db.trainingDao(), listOf(source), clock)
         restored.update(account) { }
-        assertEquals(LocalDate.parse("2026-11-02"), source.reads.first().first)
+        assertEquals(LocalDate.parse("2026-10-20"), source.reads.first().first)
         assertEquals(LocalDate.parse("2021-01-01"), source.reads[1].first)
         assertTrue(restored.historyComplete(account))
         assertEquals(1, restored.observe(account).first().size)
@@ -129,6 +129,39 @@ class LocalTrainingRepositoryTest {
         repo.update(other) { }
         assertEquals(1, repo.observe(other).first().size)
         assertEquals(1, repo.observe(account).first().size)
+    }
+
+    @Test fun firstImportIncludesRecentDaysFromPreviousYear() = runTest {
+        val source = Source()
+        val newYearClock = Clock.fixed(Instant.parse("2027-01-02T12:00:00Z"), ZoneOffset.UTC)
+        val repo = LocalTrainingRepository(db.trainingDao(), listOf(source), newYearClock)
+
+        repo.update(account) { }
+
+        assertEquals(LocalDate.parse("2026-12-20") to LocalDate.parse("2027-01-02"), source.reads.first())
+        assertEquals(LocalDate.parse("2026-12-19"), source.reads[1].second)
+        assertTrue(repo.historyComplete(account))
+    }
+
+    @Test fun updateBackfillsLateRecordBeforePreviousRefreshDay() = runTest {
+        val half = record("half", LocalDate.parse("2026-11-15"), 21270.0)
+        val treadmill = record("treadmill", LocalDate.parse("2026-11-10"))
+            .copy(subtype = TrainingSubtype.INDOOR_RUN)
+        var visible = listOf(half)
+        val source = Source().apply {
+            read = { start, end, _ -> visible.filter { it.sourceDate in start..end } }
+        }
+        val initialClock = Clock.fixed(Instant.parse("2026-11-15T12:00:00Z"), ZoneOffset.UTC)
+        LocalTrainingRepository(db.trainingDao(), listOf(source), initialClock).update(account) { }
+
+        visible = listOf(half, treadmill)
+        source.reads.clear()
+        val laterClock = Clock.fixed(Instant.parse("2026-11-17T12:00:00Z"), ZoneOffset.UTC)
+        val later = LocalTrainingRepository(db.trainingDao(), listOf(source), laterClock)
+        later.update(account) { }
+
+        assertEquals(LocalDate.parse("2026-11-04") to LocalDate.parse("2026-11-17"), source.reads.single())
+        assertEquals(listOf("half", "treadmill"), later.observe(account).first().map { it.id }.sorted())
     }
 
     @Test fun updateAfterLongOfflineGapIncludesWholeGapAndPreviousRefreshDay() = runTest {

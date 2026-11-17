@@ -61,9 +61,11 @@ class LocalTrainingRepository(
         val source = sources.single { it.id == account.source }
         val today = LocalDate.now(clock)
         val previous = dao.importState(account.source.code, account.accountId)
-        val recentStart = previous?.lastRefreshDay?.let(LocalDate::parse)?.coerceAtMost(today) ?: today.withDayOfYear(1)
+        val previousEnd = previous?.lastRefreshDay?.let(LocalDate::parse)
+        val lookbackStart = today.minusDays(RECENT_LOOKBACK_DAYS - 1)
+        val recentStart = minOf(previousEnd ?: today.withDayOfYear(1), lookbackStart)
         var state = previous ?: TrainingImportEntity(account.source.code, account.accountId,
-            today.withDayOfYear(1).minusDays(1).toString(), recentStart.toString())
+            recentStart.minusDays(1).toString(), recentStart.toString())
         readRange(source, account, recentStart, today, TrainingImportProgress.Phase.RECENT, onProgress) { _, end, records ->
             state = state.copy(lastRefreshDay = end.toString())
             save(account, records, state)
@@ -118,5 +120,8 @@ class LocalTrainingRepository(
         return true
     }
 
-    private companion object { const val READ_LIMIT = 1000 }
+    private companion object {
+        const val READ_LIMIT = 1000
+        const val RECENT_LOOKBACK_DAYS = 14L
+    }
 }
