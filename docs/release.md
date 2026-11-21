@@ -2,6 +2,14 @@
 
 本文面向 RunTrip 项目维护者。Android 后续版本必须使用同一签名，release keystore 和密码需要安全、分开备份，不能依赖 GitHub Secrets 作为备份。
 
+## 自动化验证
+
+向 `main` 推送、提交 Pull Request 或推送发版 tag 时，CI 运行单元测试、Android Lint、Debug / Release 构建，并检查 `app/schemas/` 中已跟踪的修改和未跟踪的新文件；schema 变化必须提交。
+
+独立任务在 Android 16（API 36）模拟器运行 `connectedDebugAndroidTest`，覆盖地区选择、训练和「我」页面。失败测试报告、Debug APK 和 Room schema 保留 14 天。本地构建与设备测试命令见[开发指南](development.md#环境与构建)。
+
+发版复用以上验证，全部通过后才构建签名 APK 并发布 GitHub Release；验证任务不接收签名 secrets。
+
 ## 版本管理
 
 版本号由 `gradle.properties` 中的两个属性管理：
@@ -58,8 +66,8 @@ git push origin vX.Y.Z
 
 以 `v` 开头的 tag 会触发 `.github/workflows/release.yml`。流水线会：
 
-1. 复用 [CI 验证](ci-validation.md)，包括单元测试、Lint、构建、已跟踪及未跟踪 schema 检查，以及 API 36 模拟器上的 instrumentation 测试。验证任务不接收签名 secrets。
-2. 验证全部通过后，校验 tag 与 `runTripVersionName` 一致，构建并校验签名 Release APK。
+1. 运行上述自动化验证。
+2. 通过后校验 tag 与 `runTripVersionName` 一致，构建并校验签名 Release APK。
 3. 创建 GitHub Release 并上传：
    - `RunTrip-vX.Y.Z.apk`
    - `RunTrip-vX.Y.Z.apk.sha256`

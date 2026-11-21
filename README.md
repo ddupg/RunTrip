@@ -27,6 +27,3 @@ Debug APK 生成在 `app/build/outputs/apk/debug/`。
 ## 文档
 
 - [文档导航](docs/README.md)
-- [产品范围与体验规范](docs/product.md)
-- [开发指南](docs/development.md)
-- [发版指南](docs/release.md)
