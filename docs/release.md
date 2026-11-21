@@ -4,7 +4,7 @@
 
 ## 自动化验证
 
-非文档改动或发版时，CI 运行单元测试、Android Lint、Debug / Release 构建，并检查 `app/schemas/` 是否有未提交的变化；schema 变化必须提交。
+向 `main` 推送、提交 Pull Request 或推送发版 tag 时，CI 运行单元测试、Android Lint、Debug / Release 构建，并检查 `app/schemas/` 中已跟踪的修改和未跟踪的新文件；schema 变化必须提交。
 
 独立任务在 Android 16（API 36）模拟器运行 `connectedDebugAndroidTest`，覆盖地区选择、训练和「我」页面。失败测试报告、Debug APK 和 Room schema 保留 14 天。本地构建与设备测试命令见[开发指南](development.md#环境与构建)。
 
